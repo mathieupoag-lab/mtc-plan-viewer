@@ -1,0 +1,3414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MTC Plans">
+    <title>MTC Plan Viewer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            height: 100dvh;
+            display: grid;
+            grid-template-rows: auto 1fr auto auto;
+            grid-template-columns: auto 1fr;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* ── Top Bar ── */
+        #topbar {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px;
+            background: #222;
+            border-bottom: 1px solid #444;
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+
+        /* ── Left Sidebar ── */
+        #sidebar {
+            grid-column: 1;
+            grid-row: 2 / -1;
+            background: #222;
+            border-right: 1px solid #444;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            width: 88px;
+            z-index: 2;
+        }
+        .side-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            padding: 10px 6px;
+            width: 100%;
+            min-height: 58px;
+            background: linear-gradient(to bottom, #555, #3a3a3a);
+            border: 1px solid #555;
+            border-bottom: 2px solid #222;
+            border-radius: 8px;
+            color: #ddd;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+            transition: all 0.1s ease;
+            box-sizing: border-box;
+        }
+        .side-btn:hover { background: linear-gradient(to bottom, #606060, #444); color: #fff; }
+        .side-btn:active {
+            background: linear-gradient(to bottom, #333, #444);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 3px rgba(0,0,0,0.3);
+            border-bottom: 1px solid #222;
+            transform: translateY(1px);
+        }
+        .side-btn:disabled, .side-btn.is-disabled { opacity: 0.35; }
+        .side-btn.active {
+            background: linear-gradient(to bottom, #FFa033, #e07700);
+            color: #000;
+            font-weight: 600;
+            border-color: #cc6600;
+            box-shadow: 0 2px 6px rgba(255,136,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
+        }
+        .side-btn svg { width: 22px; height: 22px; fill: currentColor; }
+        .side-btn-wrap {
+            position: relative;
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .side-btn-wrap:active { cursor: grabbing; }
+        .side-btn-wrap.dragging { opacity: 0.3; }
+        .side-btn-wrap.drag-over-top { margin-top: 3px; border-top: 3px solid #FF8800; }
+        .side-btn-wrap.drag-over-bottom { margin-bottom: 3px; border-bottom: 3px solid #FF8800; }
+        .side-btn { pointer-events: auto; }
+        .side-sep { border-top: 1px solid #444; margin: 2px 0; display: none; }
+        button {
+            padding: 8px 14px;
+            border: 1px solid #555;
+            border-bottom: 2px solid #222;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            background: linear-gradient(to bottom, #555, #3a3a3a);
+            color: #ddd;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+            transition: all 0.1s ease;
+        }
+        button:hover { background: linear-gradient(to bottom, #606060, #444); color: #fff; }
+        button.active {
+            background: linear-gradient(to bottom, #FFa033, #e07700);
+            color: #000;
+            font-weight: 600;
+            border-color: #cc6600;
+            box-shadow: 0 2px 6px rgba(255,136,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
+        }
+        button:active {
+            background: linear-gradient(to bottom, #333, #444);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 3px rgba(0,0,0,0.3);
+            transform: translateY(1px);
+        }
+        button:disabled { opacity: 0.35; pointer-events: none; }
+        #btn-open { background: linear-gradient(to bottom, #2288FF, #0055DD); border-color: #0044BB; box-shadow: 0 2px 6px rgba(0,102,255,0.4), inset 0 1px 0 rgba(255,255,255,0.15); color: #fff; }
+        #page-info { font-size: 13px; color: #aaa; min-width: 45px; text-align: center; }
+        input[type="file"] { display: none; }
+
+        /* (scalebar removed — now using modal) */
+
+        /* ── Viewer ── */
+        #viewer {
+            overflow: hidden;
+            position: relative;
+            background: #333;
+            touch-action: none;
+            cursor: default;
+        }
+        #viewer.crosshair { cursor: crosshair; }
+        #canvas-wrap {
+            position: absolute;
+            transform-origin: 0 0;
+        }
+        #pdf-canvas { display: block; }
+        #svg-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+        }
+
+        /* ── Measurement display ── */
+        .meas-dot { stroke: #fff; }
+        .meas-label {
+            font-size: 16px;
+            font-weight: bold;
+            paint-order: stroke fill;
+            stroke: rgba(0,0,0,0.85);
+            stroke-width: 5px;
+            stroke-linejoin: round;
+        }
+        .scale-line { stroke: #00AAFF; }
+        .scale-dot { fill: #00AAFF; }
+        .scale-label { fill: #00AAFF; }
+        .measure-line { stroke: #FF3333; }
+        .measure-dot { fill: #FF3333; }
+        .measure-label { fill: #FFD700; }
+        .pending-dot { fill: #FF8800; stroke: #fff;
+            animation: pulse 1s ease-in-out infinite alternate; }
+        .snap-ring { fill: none; stroke: #00FF88; stroke-width: 2; opacity: 0.8; }
+        @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
+
+        /* ── Scale Modal ── */
+        #scale-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.15);
+            z-index: 100;
+            pointer-events: none;
+        }
+        .modal-box {
+            position: absolute;
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 340px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            pointer-events: auto;
+        }
+        .modal-drag-handle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: grab;
+            margin: -24px -24px 12px -24px;
+            padding: 12px 24px;
+            border-radius: 12px 12px 0 0;
+            background: #333;
+            border-bottom: 1px solid #444;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        .modal-drag-handle:active { cursor: grabbing; }
+        .modal-drag-handle h3 { margin: 0; }
+        .modal-drag-handle .grip {
+            color: #666;
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 2px;
+            line-height: 1;
+            box-shadow: none;
+        }
+        .modal-close:hover { color: #fff; }
+        .modal-box p { font-size: 14px; color: #aaa; margin-bottom: 14px; }
+        .modal-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .modal-row input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #555;
+            border-radius: 6px;
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 18px;
+        }
+        .modal-row select {
+            padding: 10px;
+            border: 1px solid #555;
+            border-radius: 6px;
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 16px;
+        }
+        .modal-row button { flex: 1; padding: 12px; font-size: 15px; }
+
+        /* ── Bottom Status ── */
+        #status {
+            grid-column: 2;
+            padding: 10px;
+            background: #222;
+            border-top: 1px solid #444;
+            font-size: 14px;
+            text-align: center;
+            color: #aaa;
+            flex-shrink: 0;
+        }
+
+        /* ── Empty State ── */
+        #empty {
+            grid-column: 2;
+            grid-row: 2 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+        }
+        #empty h2 { margin: 12px 0 6px; color: #ccc; }
+        #empty button {
+            margin-top: 16px; padding: 14px 36px;
+            font-size: 17px; background: #FF8800; color: #000; font-weight: 600;
+        }
+
+        /* ── Measurements List ── */
+        #measurements {
+            grid-column: 2;
+            display: none;
+            max-height: 120px;
+            overflow-y: auto;
+            padding: 6px 10px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+        }
+        #measurements.show { display: block; }
+        .meas-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .meas-item .dist { color: #FFD700; font-weight: 600; }
+        .meas-item button { padding: 4px 8px; font-size: 11px; background: #633; }
+
+        /* Utility list */
+        #utility-list {
+            grid-column: 2;
+            display: none;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 6px 10px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+        #utility-list.show { display: block; }
+        .util-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .util-item .util-color { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+        .util-total-row { font-weight: 600; border-top: 1px solid #555; padding-top: 4px; margin-top: 2px; }
+
+        /* ── Legend ── */
+        #legend {
+            margin-top: auto;
+            padding: 6px;
+            border-top: 1px solid #444;
+            font-size: 10px;
+        }
+        #legend-toggle {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 10px;
+            cursor: pointer;
+            padding: 4px;
+            width: 100%;
+            text-align: center;
+        }
+        #legend-toggle:hover { color: #ccc; }
+        #legend-body { display: none; }
+        #legend-body.show { display: block; }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 0;
+            color: #bbb;
+            font-size: 10px;
+        }
+        .legend-swatch {
+            width: 14px;
+            height: 4px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Context menu */
+        #ctx-menu {
+            display: none;
+            position: fixed;
+            z-index: 200;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+            padding: 4px 0;
+            min-width: 160px;
+        }
+        #ctx-menu .ctx-item {
+            padding: 8px 14px;
+            font-size: 13px;
+            color: #ddd;
+            cursor: pointer;
+            display: block;
+            width: 100%;
+            border: none;
+            background: none;
+            text-align: left;
+        }
+        #ctx-menu .ctx-item:hover { background: #444; }
+        #ctx-menu .ctx-item.danger { color: #f66; }
+        #ctx-menu .ctx-item.danger:hover { background: #633; }
+
+        /* ── Help Modal ── */
+        #help-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        #help-overlay.show { display: flex; }
+        #help-box {
+            background: #2a2a2a;
+            border-radius: 12px;
+            max-width: 420px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+        #help-box h3 {
+            position: sticky;
+            top: 0;
+            background: #333;
+            margin: 0;
+            padding: 14px 18px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #help-close {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 0 4px;
+            box-shadow: none;
+        }
+        #help-close:hover { color: #fff; }
+        #help-content {
+            padding: 16px 18px;
+        }
+        #help-content h4 {
+            color: #FF8800;
+            font-size: 13px;
+            margin: 14px 0 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        #help-content h4:first-child { margin-top: 0; }
+        #help-content p, #help-content li {
+            color: #bbb;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 0 0 4px;
+        }
+        #help-content ul {
+            padding-left: 18px;
+            margin: 0 0 8px;
+        }
+        .help-key {
+            display: inline-block;
+            background: #444;
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 11px;
+            color: #ddd;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="topbar">
+        <button id="btn-open">Open</button>
+        <button id="btn-close" style="display:none; background:#633;">Close</button>
+        <button id="btn-clear-all" disabled style="background:#633;">Clear All</button>
+        <button id="btn-first" disabled title="First page">|&lt;</button>
+        <button id="btn-prev" disabled>&lt;</button>
+        <input type="number" id="page-input" value="1" min="1" style="width:36px; text-align:center; padding:6px 2px; border:1px solid #555; border-radius:4px; background:#333; color:#fff; font-size:13px; -moz-appearance:textfield;">
+        <span id="page-total">/ 0</span>
+        <button id="btn-next" disabled>&gt;</button>
+        <button id="btn-last" disabled title="Last page">&gt;|</button>
+        <span id="scale-display" style="display:none; font-size:12px; color:#00AAFF; background:#333; padding:4px 8px; border-radius:4px; white-space:nowrap;"></span>
+        <span style="flex:1"></span>
+        <button id="btn-zoom-out">-</button>
+        <button id="btn-zoom-in">+</button>
+    </div>
+
+    <!-- Left Sidebar -->
+    <aside id="sidebar">
+        <button class="side-btn" id="btn-scale" data-fixed="true">
+            <svg viewBox="0 0 24 24"><path d="M1.39,18.36L3.16,16.6L4.58,18L5.64,16.95L4.22,15.54L5.64,14.12L8.11,16.6L9.17,15.54L6.7,13.06L8.11,11.65L9.53,13.06L10.59,12L9.17,10.59L10.59,9.17L13.06,11.65L14.12,10.59L11.65,8.11L13.06,6.7L14.48,8.11L15.54,7.05L14.12,5.64L15.54,4.22L18,6.7L19.07,5.64L16.6,3.16L18.36,1.39L22.61,5.64L5.64,22.61L1.39,18.36Z"/></svg>
+            Set Scale
+        </button>
+        <button class="side-btn is-disabled" id="btn-undo" data-fixed="true">
+            <svg viewBox="0 0 24 24"><path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z"/></svg>
+            Undo
+        </button>
+        <button class="side-btn is-disabled" id="btn-measure">
+            <svg viewBox="0 0 24 24"><path d="M7,2H17A2,2 0 0,1 19,4V20A2,2 0 0,1 17,22H7A2,2 0 0,1 5,20V4A2,2 0 0,1 7,2M7,4V8H9V4H7M7,10V12H9V10H7M7,14V16H9V14H7M7,18V20H9V18H7Z"/></svg>
+            Measure
+        </button>
+        <button class="side-btn is-disabled" id="btn-polyline">
+            <svg viewBox="0 0 24 24"><path d="M2,3V9L6,6.7V17.3L2,15V21H8V17.3L12,19.6V17.3L16,19.6V21H22V15L18,17.3V6.7L22,9V3H16V6.7L12,4.4V6.7L8,4.4V3H2Z"/></svg>
+            Polyline
+        </button>
+        <button class="side-btn is-disabled" id="btn-utility">
+            <svg viewBox="0 0 24 24"><path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M11,7H13V13H11V7M11,15H13V17H11V15Z"/></svg>
+            Utility
+        </button>
+        <button class="side-btn is-disabled" id="btn-compare">
+            <svg viewBox="0 0 24 24"><path d="M13,23H1V1H13V23M15,1V23H23V1H15M3,3V5H11V3H3M3,7V9H11V7H3M3,11V13H11V11H3M17,3V5H21V3H17M17,7V9H21V7H17M17,11V13H21V11H17Z"/></svg>
+            Compare
+        </button>
+        <button class="side-btn" id="btn-show-snaps" title="Show/hide snap points">
+            <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/></svg>
+            Snaps
+        </button>
+        <button class="side-btn" id="btn-help">
+            <svg viewBox="0 0 24 24"><path d="M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z"/></svg>
+            Help
+        </button>
+        <span style="flex:1"></span>
+        <button class="side-btn is-disabled" id="btn-export" data-fixed="true">
+            <svg viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></svg>
+            Export
+        </button>
+        <div id="legend">
+            <button id="legend-toggle">▸ Legend</button>
+            <div id="legend-body">
+                <div class="legend-item"><span class="legend-swatch" style="background:#00AAFF;"></span>Scale Line</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#FF3333;"></span>Measurement</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#FFD700; height:2px;"></span>Distance Label</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#FF8800;"></span>Polyline</div>
+                <div style="border-top:1px solid #444; margin:3px 0;"></div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#0066FF;"></span>Water</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#00AA44;"></span>Sewer</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#CC00CC;"></span>Storm</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#DD2222;"></span>Electric</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Scale modal — enter distance after tapping two points -->
+    <div id="scale-modal" style="display:none">
+        <div class="modal-box" id="scale-modal-box">
+            <div class="modal-drag-handle" id="scale-drag-handle">
+                <h3>Set Scale</h3>
+                <button class="modal-close" id="scale-close">&times;</button>
+            </div>
+            <p style="color:#ccc;">Enter the real distance between your two points:</p>
+            <div class="modal-row">
+                <input type="number" id="scale-val" placeholder="60" step="any" min="0" inputmode="decimal">
+                <select id="scale-unit">
+                    <option value="ft">feet</option>
+                    <option value="in">inches</option>
+                    <option value="yd">yards</option>
+                    <option value="m">meters</option>
+                </select>
+            </div>
+            <div class="modal-row">
+                <button id="scale-confirm" class="active" style="flex:1">Set Scale</button>
+            </div>
+            <div class="modal-row" style="margin-top:4px; margin-bottom:0;">
+                <button id="scale-cancel" style="flex:1">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="viewer" style="display:none">
+        <div id="canvas-wrap">
+            <canvas id="pdf-canvas"></canvas>
+            <canvas id="compare-canvas" style="position:absolute;top:0;left:0;display:none;"></canvas>
+            <svg id="svg-overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+    </div>
+
+    <!-- Compare modal -->
+    <div id="compare-modal" style="display:none">
+        <div class="modal-box" id="compare-modal-box" style="max-width:400px;">
+            <div class="modal-drag-handle" id="compare-drag-handle">
+                <h3>Compare Plans</h3>
+                <button class="modal-close" id="compare-close">&times;</button>
+            </div>
+            <div id="compare-steps">
+                <div id="cmp-step1">
+                    <p><strong>Step 1:</strong> Current page is the <span style="color:#FF4444;">existing (red)</span> plan.</p>
+                    <p>Click 4 registration points on this page (corners, intersections, or benchmarks).</p>
+                    <p id="cmp-base-count" style="color:#FF8800; margin-top:6px;">Points: 0 / 4</p>
+                    <div class="modal-row" style="margin-top:10px;">
+                        <button id="cmp-clear-base">Reset Points</button>
+                    </div>
+                </div>
+                <div id="cmp-step2" style="display:none;">
+                    <p><strong>Step 2:</strong> Open the <span style="color:#00DD00;">new (green)</span> plan.</p>
+                    <div class="modal-row" style="margin-top:8px;">
+                        <button id="cmp-open-new" style="background:#066; flex:1;">Open New PDF</button>
+                    </div>
+                    <p id="cmp-new-file" style="color:#aaa; font-size:12px; margin-top:4px;"></p>
+                    <p style="margin-top:8px;">Navigate to the matching page, then click the same 4 registration points.</p>
+                    <div class="modal-row" style="margin-top:4px;">
+                        <button id="cmp-new-prev" disabled>&lt;</button>
+                        <span id="cmp-new-page" style="font-size:13px; color:#aaa; min-width:50px; text-align:center;">-</span>
+                        <button id="cmp-new-next" disabled>&gt;</button>
+                    </div>
+                    <p id="cmp-new-count" style="color:#FF8800; margin-top:6px;">Points: 0 / 4</p>
+                    <div class="modal-row" style="margin-top:8px;">
+                        <button id="cmp-clear-new">Reset Points</button>
+                        <button id="cmp-overlay" class="active" disabled style="flex:1;">Generate Overlay</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-row" style="margin-top:12px; margin-bottom:0;">
+                <button id="cmp-cancel" style="flex:1;">Cancel</button>
+                <button id="cmp-exit-overlay" style="flex:1; display:none; background:#633;">Exit Overlay</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="file-input-compare" accept="application/pdf,image/png,image/jpeg,image/tiff,image/bmp,image/webp" style="display:none;">
+
+    <!-- Export modal -->
+    <div id="export-modal" style="display:none">
+        <div class="modal-box" id="export-modal-box" style="max-width:360px;">
+            <div class="modal-drag-handle" id="export-drag-handle">
+                <h3>Export Pages</h3>
+                <button class="modal-close" id="export-close">&times;</button>
+            </div>
+            <p style="font-size:14px; color:#aaa; margin-bottom:10px;">Export pages as PNG images with all measurements and annotations.</p>
+            <div class="modal-row">
+                <label style="color:#ccc; font-size:14px; white-space:nowrap;">Pages:</label>
+                <select id="export-range" style="flex:1; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:14px;">
+                    <option value="current">Current page</option>
+                    <option value="all">All pages</option>
+                    <option value="custom">Custom range</option>
+                    <option value="overlay">Current overlay</option>
+                </select>
+            </div>
+            <div id="export-custom-row" class="modal-row" style="display:none;">
+                <input type="text" id="export-pages" placeholder="e.g. 1-5, 8, 12" style="flex:1; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:14px;">
+            </div>
+            <div class="modal-row" style="margin-top:8px; margin-bottom:0;">
+                <button id="export-cancel">Cancel</button>
+                <button id="export-go" class="active" style="flex:1;">Export</button>
+            </div>
+            <p id="export-status" style="font-size:12px; color:#FF8800; margin-top:8px;"></p>
+        </div>
+    </div>
+
+    <!-- Utility label popup — appears after drawing a line in utility mode -->
+    <div id="utility-modal" style="display:none">
+        <div class="modal-box" id="utility-modal-box" style="max-width:280px;">
+            <div class="modal-drag-handle" id="utility-drag-handle">
+                <h3>Select Utility Type</h3>
+                <button class="modal-close" id="utility-close">&times;</button>
+            </div>
+            <div class="modal-row" style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                <button class="util-type" data-util="water" style="background:#0066FF; color:#fff; padding:8px; font-size:13px; font-weight:600;">Water</button>
+                <button class="util-type" data-util="sewer" style="background:#00AA44; color:#fff; padding:8px; font-size:13px; font-weight:600;">Sewer</button>
+                <button class="util-type" data-util="storm" style="background:#CC00CC; color:#fff; padding:8px; font-size:13px; font-weight:600;">Storm</button>
+                <button class="util-type" data-util="electric" style="background:#DD2222; color:#fff; padding:8px; font-size:13px; font-weight:600;">Electric</button>
+            </div>
+            <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+                <label style="font-size:12px; color:#aaa; white-space:nowrap;">Line Width</label>
+                <input type="number" id="util-line-width" value="2.5" min="0.5" max="10" step="0.5"
+                    style="width:52px; padding:5px; background:#1a1a1a; color:#fff; border:1px solid #555; border-radius:4px; font-size:13px; text-align:center;">
+            </div>
+            <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+                <label style="font-size:12px; color:#aaa; white-space:nowrap;">Opacity</label>
+                <input type="range" id="util-opacity" min="0.1" max="1" step="0.05" value="1"
+                    style="flex:1; accent-color:#FF8800;">
+                <span id="util-opacity-val" style="font-size:12px; color:#aaa; min-width:30px;">100%</span>
+            </div>
+            <div id="util-totals" style="margin-top:10px; display:none; border-top:1px solid #444; padding-top:8px;">
+                <div style="font-size:11px; color:#888; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Running Totals</div>
+                <div id="util-totals-body"></div>
+            </div>
+            <div class="modal-row" style="margin-top:10px; margin-bottom:0;">
+                <button id="util-cancel" style="flex:1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="measurements"></div>
+    <div id="utility-list"></div>
+    <div id="status">Open a PDF to start</div>
+
+    <div id="empty">
+        <svg viewBox="0 0 24 24" width="56" height="56"><path fill="#666" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>
+        <h2>MTC Plan Viewer</h2>
+        <p>Tap below to open a construction plan (PDF or image)</p>
+        <button id="btn-open-empty">Open</button>
+    </div>
+
+    <input type="file" id="file-input" accept="application/pdf,image/png,image/jpeg,image/tiff,image/bmp,image/webp">
+
+    <!-- Help Modal -->
+    <div id="help-overlay">
+        <div id="help-box">
+            <h3>How to Use <button id="help-close">&times;</button></h3>
+            <div id="help-content">
+                <h4>Getting Started</h4>
+                <ul>
+                    <li>Tap <strong>Open</strong> to load a construction plan</li>
+                    <li>Use <strong>two fingers</strong> to pan and pinch-zoom on the plan</li>
+                </ul>
+
+                <h4>Setting the Scale</h4>
+                <ul>
+                    <li>Tap <strong>Set Scale</strong> in the toolbar</li>
+                    <li>Enter the plan scale directly (e.g. 1" = 20 ft) <em>— or —</em></li>
+                    <li>Tap "calibrate" to tap two points on a known dimension, then enter the real distance</li>
+                </ul>
+
+                <h4>Measuring</h4>
+                <ul>
+                    <li><strong>Measure</strong> — tap two points for a straight-line distance</li>
+                    <li><strong>Polyline</strong> — tap multiple points for a running total; double-tap or tap "Finish" to complete</li>
+                    <li>Drag any measurement point to adjust it</li>
+                </ul>
+
+                <h4>Utilities</h4>
+                <ul>
+                    <li>Tap <strong>Utility</strong> and select a type (Water, Sewer, Storm, Electric)</li>
+                    <li>Tap points along the utility run; double-tap or tap "Finish" to complete</li>
+                    <li>Adjust <strong>Line Width</strong> and <strong>Opacity</strong> in the utility popup</li>
+                    <li>Drag any vertex to adjust its position</li>
+                </ul>
+
+                <h4>Editing Points (iPad / iPhone)</h4>
+                <ul>
+                    <li><strong>Long-press</strong> (hold ~1 sec) on a utility line to add a point</li>
+                    <li><strong>Long-press</strong> on a vertex to remove it (if 3+ points)</li>
+                    <li>On desktop: <strong>right-click</strong> instead of long-press</li>
+                </ul>
+
+                <h4>Navigation (iPad / iPhone)</h4>
+                <ul>
+                    <li><strong>Two-finger drag</strong> to pan around the plan</li>
+                    <li><strong>Pinch</strong> to zoom in and out</li>
+                    <li>Use <span class="help-key">&lt;</span> <span class="help-key">&gt;</span> buttons for multi-page PDFs</li>
+                    <li>Press <span class="help-key">Esc</span> to cancel the current action</li>
+                </ul>
+
+                <h4>Other Tools</h4>
+                <ul>
+                    <li><strong>Compare</strong> — overlay two PDF pages to spot differences</li>
+                    <li><strong>Export</strong> — save your measurements as an image</li>
+                    <li><strong>Undo</strong> — remove the last measurement or utility line</li>
+                    <li><strong>Snaps</strong> — toggle snap-to-endpoint dots from PDF vectors</li>
+                </ul>
+
+                <h4>Add to Home Screen</h4>
+                <p>For the best experience on iPad or iPhone, tap the <strong>Share</strong> button in Safari and select <strong>"Add to Home Screen"</strong>. The app will run full-screen like a native app.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="ctx-menu">
+        <button class="ctx-item" id="ctx-add-point">Add Point Here</button>
+        <button class="ctx-item danger" id="ctx-remove-point">Remove Point</button>
+    </div>
+
+    <script type="module">
+        window.onerror = (msg, src, line, col, err) => {
+            document.getElementById('status').textContent = 'Error: ' + msg + ' (line ' + line + ')';
+            document.getElementById('status').style.color = '#f44';
+        };
+        try {
+        var pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+
+        // ── State ──
+        let pdf = null;
+        let currentPage = 1;
+        let totalPages = 0;
+
+        // PDF is rendered once at high-res. All zoom is CSS transform.
+        const RENDER_SCALE = 2;
+
+        // The PDF page's native size in points (1 pt = 1/72 inch).
+        // All measurement coordinates are stored in PDF points so they
+        // are independent of render resolution and zoom level.
+        let pdfPageWidth = 0;   // in pts
+        let pdfPageHeight = 0;
+
+        // View transform: CSS zoom & pan applied to #canvas-wrap
+        let zoom = 1;
+        let panX = 0;
+        let panY = 0;
+
+        // Mode
+        let mode = 'none';       // 'none' | 'scale' | 'measure'
+
+        // Scale: PDF points per real-world unit.
+        let scalePtPerUnit = null;
+        let scaleUnit = 'ft';
+
+        // Scale calibration: store the two tapped points + pixel dist
+        let scaleCalibPts = null;  // {p1, p2, ptsDist} — set after two taps in scale mode
+
+        let tapPoint = null;      // first tap {x,y} in PDF pts
+        let measurements = [];    // [{x1,y1,x2,y2,label,id}] in PDF pts
+        let polyPoints = [];      // polyline: accumulated points [{x,y}]
+        let utilityLines = [];    // [{points:[], utilType, color, id}]
+        let pageAnnotations = {}; // {pageNum: {measurements:[], utilityLines:[]}} — per-page storage
+        let utilPolyPts = [];     // in-progress utility polyline
+        let activeUtilType = null; // selected utility type while drawing
+        let utilLineWidth = 2.5;  // multiplier for stroke width
+        let utilOpacity = 1.0;    // opacity for utility lines
+        let pendingUtilLine = null; // stash points while label popup is open
+        let _lastPolyTapTime = 0;
+        let _lastUtilTapTime = 0;
+
+        const UTIL_COLORS = {
+            water: '#0066FF',
+            sewer: '#00AA44',
+            storm: '#CC00CC',
+            electric: '#DD2222'
+        };
+        const UTIL_LABELS = {
+            water: 'W',
+            sewer: 'SS',
+            storm: 'ST',
+            electric: 'E'
+        };
+        let idCounter = 0;
+
+        // Snap-to-vector: extracted endpoints from PDF paths
+        let snapPoints = [];      // [{x, y}] in PDF pts
+        const SNAP_RADIUS_PX = 12; // screen pixels to snap within
+        let showSnapPoints = false; // debug: render snap dots on plan
+
+        let scaleDisplayLabel = '';
+        function updateScaleDisplay() {
+            const el = $('#scale-display');
+            if (scalePtPerUnit && scaleDisplayLabel) {
+                el.textContent = scaleDisplayLabel;
+                el.style.display = '';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+
+        // ── Per-page annotation storage ──
+        function savePageData() {
+            if (currentPage < 1) return;
+            pageAnnotations[currentPage] = {
+                measurements: [...measurements],
+                utilityLines: [...utilityLines]
+            };
+        }
+        function loadPageData(pageNum) {
+            const data = pageAnnotations[pageNum];
+            if (data) {
+                measurements = [...data.measurements];
+                utilityLines = [...data.utilityLines];
+            } else {
+                measurements = [];
+                utilityLines = [];
+            }
+            // Reset in-progress drawing state when switching pages
+            tapPoint = null;
+            polyPoints = [];
+            utilPolyPts = [];
+            cursorPt = null;
+            updateMeasurementsList();
+            updateUtilityList();
+        }
+
+        // Helper: enable/disable sidebar buttons via CSS class (not HTML disabled, which blocks events)
+        function sideEnable(sel) { $(sel).classList.remove('is-disabled'); }
+        function sideDisable(sel) { $(sel).classList.add('is-disabled'); }
+
+        // ── DOM ──
+        const $ = s => document.querySelector(s);
+        const viewer = $('#viewer');
+        const canvasWrap = $('#canvas-wrap');
+        const pdfCanvas = $('#pdf-canvas');
+        const ctx = pdfCanvas.getContext('2d');
+        const svgEl = $('#svg-overlay');
+
+        // ───────── PDF Rendering ─────────
+
+        async function loadPDF(file) {
+            const buf = await file.arrayBuffer();
+            pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+            totalPages = pdf.numPages;
+            measurements = [];
+            utilityLines = [];
+            pageAnnotations = {};
+            tapPoint = null;
+            scalePtPerUnit = null;
+            scaleCalibPts = null;
+            $('#empty').style.display = 'none';
+            $('#btn-close').style.display = '';
+            sideEnable('#btn-compare');
+            sideEnable('#btn-export');
+            sideEnable('#btn-utility');
+            viewer.style.display = '';
+            await renderPage(1);
+            setMode('none');
+        }
+
+        async function loadImage(file) {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.src = url;
+            await img.decode();
+
+            pdf = null;
+            totalPages = 1;
+            currentPage = 1;
+            measurements = [];
+            utilityLines = [];
+            tapPoint = null;
+            scalePtPerUnit = null;
+            scaleCalibPts = null;
+            snapPoints = [];
+
+            // Image dimensions become the "page" size
+            pdfPageWidth = img.naturalWidth / RENDER_SCALE;
+            pdfPageHeight = img.naturalHeight / RENDER_SCALE;
+
+            pdfCanvas.width = img.naturalWidth;
+            pdfCanvas.height = img.naturalHeight;
+            const imgCtx = pdfCanvas.getContext('2d');
+            imgCtx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+
+            svgEl.setAttribute('viewBox', `0 0 ${pdfPageWidth} ${pdfPageHeight}`);
+
+            $('#empty').style.display = 'none';
+            $('#btn-close').style.display = '';
+            sideEnable('#btn-compare');
+            sideEnable('#btn-export');
+            sideEnable('#btn-utility');
+            viewer.style.display = '';
+
+            updatePageInfo();
+            // Disable page nav for images
+            $('#btn-prev').disabled = true;
+            $('#btn-first').disabled = true;
+            $('#btn-next').disabled = true;
+            $('#btn-last').disabled = true;
+
+            fitToScreen();
+            setMode('none');
+            updateScaleDisplay();
+        }
+
+        async function renderPage(num) {
+            // Save annotations for the page we're leaving
+            savePageData();
+
+            const page = await pdf.getPage(num);
+            const nativeVp = page.getViewport({ scale: 1 });
+            pdfPageWidth = nativeVp.width;
+            pdfPageHeight = nativeVp.height;
+
+            const vp = page.getViewport({ scale: RENDER_SCALE });
+            pdfCanvas.width = vp.width;
+            pdfCanvas.height = vp.height;
+            await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+            // Extract vector snap points from PDF operators
+            await extractSnapPoints(page, nativeVp);
+
+            currentPage = num;
+            // Load annotations for the page we're arriving at
+            loadPageData(num);
+            updatePageInfo();
+            fitToScreen();
+            rebuildSVG();
+        }
+
+        // ───────── Vector Snap Point Extraction ─────────
+        // PDF.js operator list uses numeric constants for path ops.
+        // We extract endpoints from constructPath which bundles multiple ops.
+
+        async function extractSnapPoints(page, viewport) {
+            snapPoints = [];
+            const seen = new Set();
+            const tx = viewport.transform;
+
+            function toViewPt(px, py) {
+                return {
+                    x: tx[0] * px + tx[2] * py + tx[4],
+                    y: tx[1] * px + tx[3] * py + tx[5]
+                };
+            }
+
+            function addPt(px, py) {
+                const pt = toViewPt(px, py);
+                if (pt.x < 0 || pt.y < 0 || pt.x > pdfPageWidth || pt.y > pdfPageHeight) return;
+                const key = `${Math.round(pt.x * 2)},${Math.round(pt.y * 2)}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    snapPoints.push(pt);
+                }
+            }
+
+            try {
+                const ops = await page.getOperatorList();
+                const fns = ops.fnArray;
+                const argsArr = ops.argsArray;
+
+                // Log OPS constants so we know what to match
+                const opsMap = {};
+                for (const [name, val] of Object.entries(pdfjsLib.OPS)) {
+                    opsMap[val] = name;
+                }
+
+                // Count operator types for debugging
+                const opCounts = {};
+                for (const fn of fns) {
+                    const name = opsMap[fn] || `unknown(${fn})`;
+                    opCounts[name] = (opCounts[name] || 0) + 1;
+                }
+                console.log('PDF operators found:', JSON.stringify(opCounts));
+                console.log('OPS.constructPath =', pdfjsLib.OPS.constructPath);
+                console.log('OPS.moveTo =', pdfjsLib.OPS.moveTo);
+                console.log('OPS.lineTo =', pdfjsLib.OPS.lineTo);
+                console.log('OPS.rectangle =', pdfjsLib.OPS.rectangle);
+
+                for (let i = 0; i < fns.length; i++) {
+                    const fn = fns[i];
+                    const fnArgs = argsArr[i];
+
+                    if (fn === pdfjsLib.OPS.constructPath) {
+                        const subOps = fnArgs[0];
+                        const subArgs = fnArgs[1];
+                        if (i === 0) {
+                            console.log('constructPath sample subOps:', subOps.slice(0, 20));
+                            console.log('constructPath sample subArgs:', subArgs.slice(0, 20));
+                            console.log('OPS.moveTo value check:', pdfjsLib.OPS.moveTo);
+                        }
+                        let ai = 0;
+                        for (const op of subOps) {
+                            switch (op) {
+                                case pdfjsLib.OPS.moveTo:
+                                    addPt(subArgs[ai], subArgs[ai + 1]);
+                                    ai += 2;
+                                    break;
+                                case pdfjsLib.OPS.lineTo:
+                                    addPt(subArgs[ai], subArgs[ai + 1]);
+                                    ai += 2;
+                                    break;
+                                case pdfjsLib.OPS.curveTo:
+                                    addPt(subArgs[ai], subArgs[ai + 1]);
+                                    addPt(subArgs[ai + 2], subArgs[ai + 3]);
+                                    addPt(subArgs[ai + 4], subArgs[ai + 5]);
+                                    ai += 6;
+                                    break;
+                                case pdfjsLib.OPS.curveTo2:
+                                    addPt(subArgs[ai], subArgs[ai + 1]);
+                                    addPt(subArgs[ai + 2], subArgs[ai + 3]);
+                                    ai += 4;
+                                    break;
+                                case pdfjsLib.OPS.curveTo3:
+                                    addPt(subArgs[ai], subArgs[ai + 1]);
+                                    addPt(subArgs[ai + 2], subArgs[ai + 3]);
+                                    ai += 4;
+                                    break;
+                                case pdfjsLib.OPS.rectangle:
+                                    addPt(subArgs[ai], subArgs[ai + 1]);
+                                    addPt(subArgs[ai] + subArgs[ai + 2], subArgs[ai + 1]);
+                                    addPt(subArgs[ai], subArgs[ai + 1] + subArgs[ai + 3]);
+                                    addPt(subArgs[ai] + subArgs[ai + 2], subArgs[ai + 1] + subArgs[ai + 3]);
+                                    ai += 4;
+                                    break;
+                                case pdfjsLib.OPS.closePath:
+                                    break;
+                                default:
+                                    // Try matching by hardcoded values in case OPS names differ for sub-ops
+                                    // moveTo=13, lineTo=14, curveTo=15, curveTo2=16, curveTo3=17, rect=19, close=20
+                                    if (op === 13) { addPt(subArgs[ai], subArgs[ai+1]); ai += 2; }
+                                    else if (op === 14) { addPt(subArgs[ai], subArgs[ai+1]); ai += 2; }
+                                    else if (op === 15) { addPt(subArgs[ai],subArgs[ai+1]); addPt(subArgs[ai+2],subArgs[ai+3]); addPt(subArgs[ai+4],subArgs[ai+5]); ai += 6; }
+                                    else if (op === 16 || op === 17) { addPt(subArgs[ai],subArgs[ai+1]); addPt(subArgs[ai+2],subArgs[ai+3]); ai += 4; }
+                                    else if (op === 19) { addPt(subArgs[ai],subArgs[ai+1]); ai += 4; }
+                                    else if (op === 20) { /* close */ }
+                                    break;
+                            }
+                        }
+                    }
+                    // Individual ops (some pdf.js versions)
+                    else if (fn === pdfjsLib.OPS.moveTo) {
+                        addPt(fnArgs[0], fnArgs[1]);
+                    } else if (fn === pdfjsLib.OPS.lineTo) {
+                        addPt(fnArgs[0], fnArgs[1]);
+                    } else if (fn === pdfjsLib.OPS.rectangle) {
+                        addPt(fnArgs[0], fnArgs[1]);
+                        addPt(fnArgs[0] + fnArgs[2], fnArgs[1]);
+                        addPt(fnArgs[0], fnArgs[1] + fnArgs[3]);
+                        addPt(fnArgs[0] + fnArgs[2], fnArgs[1] + fnArgs[3]);
+                    }
+                }
+            } catch (err) {
+                console.warn('Snap extraction failed:', err);
+            }
+            console.log(`Snap: ${snapPoints.length} points extracted`);
+        }
+
+        // Find nearest snap point within radius (in screen pixels)
+        function snapTo(rawPt) {
+            if (snapPoints.length === 0 || mode === 'none') return rawPt;
+            const radiusPts = SNAP_RADIUS_PX * ptsPerScreenPx();
+            let best = null;
+            let bestDist = radiusPts;
+            for (const sp of snapPoints) {
+                const d = Math.hypot(sp.x - rawPt.x, sp.y - rawPt.y);
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = sp;
+                }
+            }
+            return best ? { x: best.x, y: best.y, snapped: true } : rawPt;
+        }
+
+        function fitToScreen() {
+            const vw = viewer.clientWidth;
+            const vh = viewer.clientHeight;
+            // Canvas pixel size
+            const cw = pdfCanvas.width;
+            const ch = pdfCanvas.height;
+            zoom = Math.min(vw / cw, vh / ch) * 0.95;
+            panX = (vw - cw * zoom) / 2;
+            panY = (vh - ch * zoom) / 2;
+            applyTransform();
+        }
+
+        function applyTransform() {
+            canvasWrap.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+            if (pdfPageWidth > 0) rebuildSVG();
+        }
+
+        function updatePageInfo() {
+            $('#page-input').value = currentPage;
+            $('#page-input').max = totalPages;
+            $('#page-total').textContent = `/ ${totalPages}`;
+            $('#btn-prev').disabled = currentPage <= 1;
+            $('#btn-first').disabled = currentPage <= 1;
+            $('#btn-next').disabled = currentPage >= totalPages;
+            $('#btn-last').disabled = currentPage >= totalPages;
+        }
+
+        // ───────── Coordinate Mapping ─────────
+        // Screen pixel → PDF points (zoom & pan independent)
+
+        function screenToPdfPts(clientX, clientY) {
+            const rect = viewer.getBoundingClientRect();
+            // Position within the viewer element
+            const vx = clientX - rect.left;
+            const vy = clientY - rect.top;
+            // Invert the CSS transform: translate then scale
+            const canvasPixelX = (vx - panX) / zoom;
+            const canvasPixelY = (vy - panY) / zoom;
+            // Canvas pixels → PDF points
+            return {
+                x: canvasPixelX / RENDER_SCALE,
+                y: canvasPixelY / RENDER_SCALE
+            };
+        }
+
+        // Distance between two PDF-point coords, in PDF points
+        function ptsDist(a, b) {
+            return Math.hypot(b.x - a.x, b.y - a.y);
+        }
+
+        // ───────── Touch / Pointer Handling ─────────
+        // - 1 finger tap        → measurement point (in active tool mode)
+        // - 1 finger drag       → pan (only in 'none' mode; ignored in tool modes)
+        // - 2 finger drag       → pan (always)
+        // - 2 finger pinch      → zoom (always)
+        // - Mouse drag           → pan (always, right/middle or in none mode)
+
+        let touches = {};
+        let pinchStartDist = null;
+        let pinchStartZoom = null;
+        let pinchMid = null;
+        let isPanning = false;
+        let panStartX = 0, panStartY = 0;
+        let panStartPanX = 0, panStartPanY = 0;
+        let tapCandidate = null;
+        let isMouseDrag = false;
+
+        // Live preview: current cursor position in PDF pts
+        let cursorPt = null;
+
+        // Dragging existing measurement points
+        let dragTarget = null;  // { measIdx, pointKey:'start'|'end'|polyIdx, origPt }
+        let isDraggingPoint = false;
+
+        viewer.addEventListener('pointerdown', e => {
+            e.preventDefault();
+
+            // Middle mouse button → start middle-drag pan
+            if (e.button === 1) {
+                middleDrag = true;
+                middlePointerId = e.pointerId;
+                middleStartX = e.clientX;
+                middleStartY = e.clientY;
+                middlePanStartX = panX;
+                middlePanStartY = panY;
+                viewer.style.cursor = 'grabbing';
+                return;
+            }
+
+            touches[e.pointerId] = { x: e.clientX, y: e.clientY };
+            const ids = Object.keys(touches);
+
+            if (ids.length === 2) {
+                tapCandidate = null;
+                isPanning = false;
+                isMouseDrag = false;
+                isDraggingPoint = false;
+                dragTarget = null;
+                const [a, b] = ids.map(id => touches[id]);
+                pinchStartDist = Math.hypot(b.x - a.x, b.y - a.y);
+                pinchStartZoom = zoom;
+                pinchMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+                panStartPanX = panX;
+                panStartPanY = panY;
+            } else if (ids.length === 1) {
+                // Check if clicking near an existing measurement point to drag it
+                // Skip during compare mode — all taps are registration points
+                if (!compareMode) {
+                    const clickPt = screenToPdfPts(e.clientX, e.clientY);
+                    const hitResult = hitTestMeasurementPoint(clickPt);
+                    if (hitResult) {
+                        dragTarget = hitResult;
+                        isDraggingPoint = false;
+                        tapCandidate = { id: e.pointerId, x: e.clientX, y: e.clientY, time: Date.now() };
+                    } else {
+                        dragTarget = null;
+                    }
+                } else {
+                    dragTarget = null;
+                }
+
+                tapCandidate = tapCandidate || { id: e.pointerId, x: e.clientX, y: e.clientY, time: Date.now() };
+                isPanning = false;
+                isMouseDrag = false;
+                panStartX = e.clientX;
+                panStartY = e.clientY;
+                panStartPanX = panX;
+                panStartPanY = panY;
+            }
+        });
+
+        viewer.addEventListener('pointermove', e => {
+            e.preventDefault();
+            // Middle-drag pan
+            if (middleDrag && e.pointerId === middlePointerId) {
+                panX = middlePanStartX + (e.clientX - middleStartX);
+                panY = middlePanStartY + (e.clientY - middleStartY);
+                applyTransform();
+                return;
+            }
+            if (!touches[e.pointerId]) return;
+            touches[e.pointerId] = { x: e.clientX, y: e.clientY };
+            const ids = Object.keys(touches);
+
+            if (ids.length === 2 && pinchStartDist) {
+                // Two-finger: pinch zoom + pan
+                const [a, b] = ids.map(id => touches[id]);
+                const dist = Math.hypot(b.x - a.x, b.y - a.y);
+                const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+                const newZoom = Math.min(8, Math.max(0.1, pinchStartZoom * (dist / pinchStartDist)));
+
+                const rect = viewer.getBoundingClientRect();
+                const mx = pinchMid.x - rect.left;
+                const my = pinchMid.y - rect.top;
+                const ratio = newZoom / zoom;
+                panX = mx - ratio * (mx - panX);
+                panY = my - ratio * (my - panY);
+
+                // Two-finger pan
+                panX += mid.x - pinchMid.x;
+                panY += mid.y - pinchMid.y;
+                pinchMid = mid;
+
+                zoom = newZoom;
+                applyTransform();
+                tapCandidate = null;
+            } else if (ids.length === 1) {
+                const dx = e.clientX - panStartX;
+                const dy = e.clientY - panStartY;
+                const moved = Math.hypot(dx, dy) > 8;
+
+                // Dragging an existing measurement/utility point
+                if (dragTarget && moved) {
+                    isDraggingPoint = true;
+                    tapCandidate = null;
+                    isPanning = false;
+                    isMouseDrag = false;
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                    viewer.style.cursor = 'grabbing';
+                    const pt = snapTo(screenToPdfPts(e.clientX, e.clientY));
+                    applyDragTarget(pt);
+                    if (dragTarget.isUtil) {
+                        recalcUtility(dragTarget.utilIdx);
+                        updateUtilityList();
+                    } else {
+                        recalcMeasurement(dragTarget.measIdx);
+                        updateMeasurementsList();
+                    }
+                    rebuildSVG();
+                    return;
+                }
+
+                // Live preview: update cursor position for rubber-band line
+                if ((tapPoint || polyPoints.length > 0 || utilPolyPts.length > 0) && mode !== 'none') {
+                    cursorPt = screenToPdfPts(e.clientX, e.clientY);
+                    rebuildSVG();
+                }
+
+                if (moved && !isPanning && !isMouseDrag && !isDraggingPoint && !dragTarget) {
+                    const isTouch = e.pointerType === 'touch';
+                    if ((!isTouch || mode === 'none') && !compareMode) {
+                        isPanning = true;
+                    } else {
+                        isMouseDrag = true;
+                    }
+                    tapCandidate = null;
+                }
+                if (isPanning) {
+                    panX = panStartPanX + dx;
+                    panY = panStartPanY + dy;
+                    applyTransform();
+                }
+            }
+        });
+
+        viewer.addEventListener('pointerup', e => {
+            e.preventDefault();
+
+            // End middle-drag
+            if (middleDrag && e.pointerId === middlePointerId) {
+                middleDrag = false;
+                middlePointerId = null;
+                viewer.style.cursor = '';
+                return;
+            }
+
+            // End point drag
+            if (isDraggingPoint && dragTarget) {
+                if (dragTarget.isUtil) {
+                    recalcUtility(dragTarget.utilIdx);
+                    updateUtilityList();
+                } else {
+                    recalcMeasurement(dragTarget.measIdx);
+                    updateMeasurementsList();
+                }
+                savePageData();
+                isDraggingPoint = false;
+                dragTarget = null;
+                viewer.style.cursor = '';
+                rebuildSVG();
+                delete touches[e.pointerId];
+                return;
+            }
+            isDraggingPoint = false;
+            dragTarget = null;
+
+            if (tapCandidate && tapCandidate.id === e.pointerId) {
+                const dx = e.clientX - tapCandidate.x;
+                const dy = e.clientY - tapCandidate.y;
+                const elapsed = Date.now() - tapCandidate.time;
+                if (Math.hypot(dx, dy) < 12 && elapsed < 400) {
+                    handleTap(e.clientX, e.clientY);
+                }
+                tapCandidate = null;
+            }
+
+            delete touches[e.pointerId];
+            if (Object.keys(touches).length < 2) pinchStartDist = null;
+            if (Object.keys(touches).length === 0) {
+                isPanning = false;
+                isMouseDrag = false;
+            }
+        });
+
+        viewer.addEventListener('pointercancel', e => {
+            delete touches[e.pointerId];
+            tapCandidate = null;
+            isDraggingPoint = false;
+            dragTarget = null;
+            if (Object.keys(touches).length < 2) pinchStartDist = null;
+        });
+
+        // Live preview: track mouse position even when no button is pressed (desktop)
+        viewer.addEventListener('mousemove', e => {
+            if (Object.keys(touches).length > 0) return; // pointer events handle this
+            if (mode === 'none') { cursorPt = null; return; }
+            if (tapPoint || polyPoints.length > 0 || utilPolyPts.length > 0) {
+                cursorPt = screenToPdfPts(e.clientX, e.clientY);
+                rebuildSVG();
+            }
+        });
+
+        // Clear cursor when leaving viewer
+        viewer.addEventListener('mouseleave', () => {
+            if (cursorPt) { cursorPt = null; rebuildSVG(); }
+        });
+
+        // Escape key — cancel current action, reset to first point
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (utilPolyPts.length > 0) {
+                utilPolyPts = [];
+                cursorPt = null;
+                rebuildSVG();
+                setStatus('Utility line cancelled.');
+                return;
+            }
+            if (polyPoints.length > 0) {
+                polyPoints = [];
+                cursorPt = null;
+                rebuildSVG();
+                setStatus('Polyline cancelled. Tap to start a new one.');
+                return;
+            }
+            if (tapPoint) {
+                // Cancel first point, ready for a new first point
+                tapPoint = null;
+                cursorPt = null;
+                rebuildSVG();
+                setStatus('Cancelled. Tap to start a new measurement.');
+                return;
+            }
+        });
+
+        // ── Right-click context menu for utility points ──
+        const ctxMenu = $('#ctx-menu');
+        const ctxAddBtn = $('#ctx-add-point');
+        const ctxRemoveBtn = $('#ctx-remove-point');
+        let ctxTarget = null; // { type: 'point'|'segment', utilIdx, polyIdx?, segIdx?, insertAt?, pt }
+        let suppressNextTap = false;
+
+        function hideCtxMenu() {
+            ctxMenu.style.display = 'none';
+            ctxTarget = null;
+            suppressNextTap = true;
+            setTimeout(() => { suppressNextTap = false; }, 300);
+        }
+
+        document.addEventListener('click', e => {
+            if (!ctxMenu.contains(e.target)) hideCtxMenu();
+        });
+
+        viewer.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            const clickPt = screenToPdfPts(e.clientX, e.clientY);
+
+            // Check if right-clicking on a utility vertex
+            const hitRadius = 10 * ptsPerScreenPx();
+            for (let i = utilityLines.length - 1; i >= 0; i--) {
+                const u = utilityLines[i];
+                for (let j = 0; j < u.points.length; j++) {
+                    if (ptsDist(clickPt, u.points[j]) < hitRadius) {
+                        ctxTarget = { type: 'point', utilIdx: i, polyIdx: j, pt: clickPt };
+                        ctxAddBtn.style.display = 'none';
+                        ctxRemoveBtn.style.display = u.points.length > 2 ? 'block' : 'none';
+                        if (u.points.length <= 2) { hideCtxMenu(); return; }
+                        ctxMenu.style.left = e.clientX + 'px';
+                        ctxMenu.style.top = e.clientY + 'px';
+                        ctxMenu.style.display = 'block';
+                        return;
+                    }
+                }
+            }
+
+            // Check if right-clicking on a utility line segment
+            const segHit = hitTestUtilitySegment(clickPt);
+            if (segHit) {
+                ctxTarget = { type: 'segment', utilIdx: segHit.utilIdx, segIdx: segHit.segIdx, insertAt: segHit.insertAt, pt: segHit.projPt };
+                ctxAddBtn.style.display = 'block';
+                ctxRemoveBtn.style.display = 'none';
+                ctxMenu.style.left = e.clientX + 'px';
+                ctxMenu.style.top = e.clientY + 'px';
+                ctxMenu.style.display = 'block';
+                return;
+            }
+
+            hideCtxMenu();
+        });
+
+        ctxAddBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            if (!ctxTarget || ctxTarget.type !== 'segment') return;
+            const u = utilityLines[ctxTarget.utilIdx];
+            u.points.splice(ctxTarget.insertAt, 0, { x: ctxTarget.pt.x, y: ctxTarget.pt.y });
+            recalcUtility(ctxTarget.utilIdx);
+            savePageData();
+            rebuildSVG();
+            updateUtilityList();
+            hideCtxMenu();
+        });
+
+        ctxRemoveBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            if (!ctxTarget || ctxTarget.type !== 'point') return;
+            const u = utilityLines[ctxTarget.utilIdx];
+            if (u.points.length <= 2) return; // need at least 2 points
+            u.points.splice(ctxTarget.polyIdx, 1);
+            recalcUtility(ctxTarget.utilIdx);
+            savePageData();
+            rebuildSVG();
+            updateUtilityList();
+            hideCtxMenu();
+        });
+
+        // ── Long-press on iOS/touch to trigger context menu ──
+        let longPressTimer = null;
+        let longPressTarget = null;
+        let longPressPt = null;
+
+        viewer.addEventListener('touchstart', e => {
+            if (e.touches.length !== 1) { clearTimeout(longPressTimer); return; }
+            const t = e.touches[0];
+            longPressPt = { clientX: t.clientX, clientY: t.clientY };
+            longPressTimer = setTimeout(() => {
+                // Simulate right-click context menu
+                const clickPt = screenToPdfPts(t.clientX, t.clientY);
+                const hitRadius = 10 * ptsPerScreenPx();
+
+                // Check vertex
+                for (let i = utilityLines.length - 1; i >= 0; i--) {
+                    const u = utilityLines[i];
+                    for (let j = 0; j < u.points.length; j++) {
+                        if (ptsDist(clickPt, u.points[j]) < hitRadius) {
+                            ctxTarget = { type: 'point', utilIdx: i, polyIdx: j, pt: clickPt };
+                            ctxAddBtn.style.display = 'none';
+                            ctxRemoveBtn.style.display = u.points.length > 2 ? 'block' : 'none';
+                            if (u.points.length <= 2) return;
+                            ctxMenu.style.left = Math.min(t.clientX, window.innerWidth - 180) + 'px';
+                            ctxMenu.style.top = Math.min(t.clientY, window.innerHeight - 80) + 'px';
+                            ctxMenu.style.display = 'block';
+                            // Prevent the tap from firing
+                            tapCandidate = null;
+                            return;
+                        }
+                    }
+                }
+
+                // Check segment
+                const segHit = hitTestUtilitySegment(clickPt);
+                if (segHit) {
+                    ctxTarget = { type: 'segment', utilIdx: segHit.utilIdx, segIdx: segHit.segIdx, insertAt: segHit.insertAt, pt: segHit.projPt };
+                    ctxAddBtn.style.display = 'block';
+                    ctxRemoveBtn.style.display = 'none';
+                    ctxMenu.style.left = Math.min(t.clientX, window.innerWidth - 180) + 'px';
+                    ctxMenu.style.top = Math.min(t.clientY, window.innerHeight - 80) + 'px';
+                    ctxMenu.style.display = 'block';
+                    tapCandidate = null;
+                }
+            }, 600);
+        }, { passive: true });
+
+        viewer.addEventListener('touchmove', e => {
+            if (longPressTimer && longPressPt) {
+                const t = e.touches[0];
+                if (Math.abs(t.clientX - longPressPt.clientX) > 10 || Math.abs(t.clientY - longPressPt.clientY) > 10) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            }
+        }, { passive: true });
+
+        viewer.addEventListener('touchend', () => {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }, { passive: true });
+
+        // Wheel events:
+        // - Always zoom (works for mouse wheel AND trackpad pinch)
+        // - Hold Shift + wheel → pan vertically
+        // - Trackpad horizontal (deltaX) → pan horizontally
+        // Pan via middle-click drag or two-finger touch
+        viewer.addEventListener('wheel', e => {
+            e.preventDefault();
+            const rect = viewer.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            // Shift+wheel → pan
+            if (e.shiftKey) {
+                panX -= e.deltaX;
+                panY -= e.deltaY;
+                applyTransform();
+                return;
+            }
+
+            // Horizontal scroll component → pan horizontally (trackpad swipe)
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5 && e.deltaX !== 0) {
+                panX -= e.deltaX;
+                panY -= e.deltaY;
+                applyTransform();
+                return;
+            }
+
+            // Zoom toward cursor
+            const factor = e.ctrlKey
+                ? Math.exp(-e.deltaY * 0.01)       // trackpad pinch (smooth)
+                : (e.deltaY > 0 ? 0.9 : 1.1);     // mouse wheel (stepped)
+            const newZoom = Math.min(8, Math.max(0.1, zoom * factor));
+            const ratio = newZoom / zoom;
+            panX = mx - ratio * (mx - panX);
+            panY = my - ratio * (my - panY);
+            zoom = newZoom;
+            applyTransform();
+        }, { passive: false });
+
+        // Double-click to finish polyline/utility at the clicked point
+        viewer.addEventListener('dblclick', e => {
+            e.preventDefault();
+            if (mode === 'polyline' && polyPoints.length >= 2) {
+                finishPolyline();
+            } else if (mode === 'utility' && utilPolyPts.length >= 2) {
+                finishUtilityLine();
+            }
+        });
+
+        // Middle mouse button state (handled in pointer events above)
+        let middleDrag = false;
+        let middlePointerId = null;
+        let middleStartX = 0, middleStartY = 0;
+        let middlePanStartX = 0, middlePanStartY = 0;
+
+        // Prevent default middle-click auto-scroll
+        viewer.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+
+        // ───────── Tap → Measurement ─────────
+
+        let handleTap = function(clientX, clientY) {
+            if (mode === 'none') return;
+            if (suppressNextTap) { suppressNextTap = false; return; }
+
+
+
+            const rawPt = screenToPdfPts(clientX, clientY);
+            const pt = snapTo(rawPt);
+
+            // Bounds check
+            if (pt.x < 0 || pt.y < 0 || pt.x > pdfPageWidth || pt.y > pdfPageHeight) return;
+
+            if (mode === 'utility') {
+                if (!activeUtilType) return; // shouldn't happen
+
+                utilPolyPts.push(pt);
+                rebuildSVG();
+                updateUtilTotalsInModal();
+
+                // Show running distance
+                if (utilPolyPts.length >= 2 && scalePtPerUnit) {
+                    let total = 0;
+                    for (let i = 1; i < utilPolyPts.length; i++) {
+                        total += ptsDist(utilPolyPts[i-1], utilPolyPts[i]);
+                    }
+                    const label = formatDist(total / scalePtPerUnit, scaleUnit);
+                    const typeName = activeUtilType.charAt(0).toUpperCase() + activeUtilType.slice(1);
+                    setStatus(`<span style="color:${UTIL_COLORS[activeUtilType]}; font-weight:bold;">${typeName}</span>: ${utilPolyPts.length} pts — ${label} | <a href="#" onclick="window._finishUtil(); return false;" style="color:#FF8800; text-decoration:underline;">Finish</a>`);
+                } else {
+                    setStatus('Tap points along the line.');
+                }
+                return;
+            }
+
+            if (mode === 'polyline') {
+                if (!scalePtPerUnit) { setStatus('Set scale first.'); return; }
+
+                polyPoints.push(pt);
+                const n = polyPoints.length;
+                if (n >= 2) {
+                    let total = 0;
+                    for (let i = 1; i < n; i++) {
+                        total += ptsDist(polyPoints[i - 1], polyPoints[i]);
+                    }
+                    const label = formatDist(total / scalePtPerUnit, scaleUnit);
+                    setStatus(`${n} pts — ${label}  | Tap next point or <a href="#" onclick="window._finishPoly(); return false;" style="color:#FF8800; text-decoration:underline;">Finish</a>`);
+                } else {
+                    setStatus('Tap next point.');
+                }
+                rebuildSVG();
+                return;
+            }
+
+            if (!tapPoint) {
+                tapPoint = pt;
+                rebuildSVG();
+                setStatus(pt.snapped ? 'Snapped! Tap the second point.' : 'First point set. Tap the second point.');
+            } else {
+                const p1 = tapPoint;
+                const p2 = pt;
+                tapPoint = null;
+                cursorPt = null;
+                const dist = ptsDist(p1, p2);
+
+                if (mode === 'scale') {
+                    scaleCalibPts = { p1, p2, ptsDist: dist };
+                    showScaleModal();
+                } else if (mode === 'measure') {
+                    if (!scalePtPerUnit) { setStatus('Set scale first.'); return; }
+                    const realDist = dist / scalePtPerUnit;
+                    const label = formatDist(realDist, scaleUnit);
+                    const id = ++idCounter;
+                    measurements.push({ type: 'line', x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, label, id });
+                    savePageData();
+                    sideEnable('#btn-undo');
+                    $('#btn-clear-all').disabled = false;
+                    setStatus(label);
+                    updateMeasurementsList();
+                }
+                rebuildSVG();
+            }
+        };
+
+        function finishUtilityLine() {
+            if (utilPolyPts.length < 2) { utilPolyPts = []; rebuildSVG(); return; }
+            // Calculate total distance
+            let totalDist = 0;
+            if (scalePtPerUnit) {
+                for (let i = 1; i < utilPolyPts.length; i++) {
+                    totalDist += ptsDist(utilPolyPts[i-1], utilPolyPts[i]);
+                }
+                totalDist = totalDist / scalePtPerUnit;
+            }
+            const label = scalePtPerUnit ? formatDist(totalDist, scaleUnit) : '';
+            const id = ++idCounter;
+            utilityLines.push({
+                points: [...utilPolyPts],
+                utilType: activeUtilType,
+                color: UTIL_COLORS[activeUtilType],
+                label,
+                id
+            });
+            utilPolyPts = [];
+            savePageData();
+            sideEnable('#btn-undo');
+            $('#btn-clear-all').disabled = false;
+            updateUtilityList();
+            rebuildSVG();
+            const typeName = activeUtilType.charAt(0).toUpperCase() + activeUtilType.slice(1);
+            setStatus(`${typeName}: ${label} added. Tap to draw another.`);
+        }
+        window._finishUtil = finishUtilityLine;
+
+        function showUtilityModal() {
+            const modal = $('#utility-modal');
+            modal.style.display = 'block';
+            const box = $('#utility-modal-box');
+            box.style.left = Math.max(0, window.innerWidth - 300) + 'px';
+            box.style.top = '60px';
+            updateUtilTotalsInModal();
+        }
+
+        // Type buttons: select type → start drawing
+        document.querySelectorAll('.util-type').forEach(btn => {
+            btn.addEventListener('click', () => {
+                activeUtilType = btn.dataset.util;
+                // Highlight selected button
+                document.querySelectorAll('.util-type').forEach(b => b.style.outline = 'none');
+                btn.style.outline = '3px solid #fff';
+                // Enter utility drawing mode
+                setMode('utility');
+                const typeName = activeUtilType.charAt(0).toUpperCase() + activeUtilType.slice(1);
+                setStatus(`Drawing <span style="color:${UTIL_COLORS[activeUtilType]}; font-weight:bold;">${typeName}</span> — tap points along the line.`);
+            });
+        });
+
+        $('#utility-close').addEventListener('click', () => { $('#util-cancel').click(); });
+        $('#util-cancel').addEventListener('click', () => {
+            activeUtilType = null;
+            utilPolyPts = [];
+            $('#utility-modal').style.display = 'none';
+            setMode('none');
+        });
+
+        $('#util-line-width').addEventListener('input', e => {
+            utilLineWidth = parseFloat(e.target.value) || 2.5;
+            rebuildSVG();
+        });
+        $('#util-opacity').addEventListener('input', e => {
+            utilOpacity = parseFloat(e.target.value);
+            $('#util-opacity-val').textContent = Math.round(utilOpacity * 100) + '%';
+            rebuildSVG();
+        });
+
+        function finishPolyline() {
+            if (polyPoints.length < 2) { polyPoints = []; rebuildSVG(); return; }
+            let total = 0;
+            for (let i = 1; i < polyPoints.length; i++) {
+                total += ptsDist(polyPoints[i - 1], polyPoints[i]);
+            }
+            const label = formatDist(total / scalePtPerUnit, scaleUnit);
+            const id = ++idCounter;
+            measurements.push({ type: 'polyline', points: [...polyPoints], label, id });
+            polyPoints = [];
+            savePageData();
+            sideEnable('#btn-undo');
+            setStatus(`Polyline: ${label}`);
+            updateMeasurementsList();
+            rebuildSVG();
+        }
+        window._finishPoly = finishPolyline;
+
+        function formatDist(val, unit) {
+            if (unit === 'ft' && val >= 1) {
+                const feet = Math.floor(val);
+                const inches = Math.round((val - feet) * 12);
+                if (inches === 0) return `${feet}'-0"`;
+                if (inches === 12) return `${feet + 1}'-0"`;
+                return `${feet}'-${inches}"`;
+            }
+            return val < 1 ? val.toFixed(2) + ' ' + unit : val.toFixed(1) + ' ' + unit;
+        }
+
+        // ───────── Hit Test & Drag Measurement Points ─────────
+
+        function hitTestMeasurementPoint(pt) {
+            const hitRadius = 10 * ptsPerScreenPx();
+            // Check utility lines first (drawn on top)
+            for (let i = utilityLines.length - 1; i >= 0; i--) {
+                const u = utilityLines[i];
+                for (let j = 0; j < u.points.length; j++) {
+                    if (ptsDist(pt, u.points[j]) < hitRadius) {
+                        return { utilIdx: i, polyIdx: j, isUtil: true };
+                    }
+                }
+            }
+            for (let i = measurements.length - 1; i >= 0; i--) {
+                const m = measurements[i];
+                if (m.type === 'polyline') {
+                    for (let j = 0; j < m.points.length; j++) {
+                        if (ptsDist(pt, m.points[j]) < hitRadius) {
+                            return { measIdx: i, pointKey: 'poly', polyIdx: j };
+                        }
+                    }
+                } else {
+                    if (ptsDist(pt, { x: m.x1, y: m.y1 }) < hitRadius) {
+                        return { measIdx: i, pointKey: 'start' };
+                    }
+                    if (ptsDist(pt, { x: m.x2, y: m.y2 }) < hitRadius) {
+                        return { measIdx: i, pointKey: 'end' };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Hit test: is the point near a utility line segment (not vertex)?
+        function hitTestUtilitySegment(pt) {
+            const hitRadius = 10 * ptsPerScreenPx();
+            for (let i = utilityLines.length - 1; i >= 0; i--) {
+                const u = utilityLines[i];
+                for (let j = 0; j < u.points.length - 1; j++) {
+                    const a = u.points[j], b = u.points[j + 1];
+                    // Point-to-segment distance
+                    const dx = b.x - a.x, dy = b.y - a.y;
+                    const lenSq = dx * dx + dy * dy;
+                    if (lenSq === 0) continue;
+                    let t = ((pt.x - a.x) * dx + (pt.y - a.y) * dy) / lenSq;
+                    t = Math.max(0, Math.min(1, t));
+                    const proj = { x: a.x + t * dx, y: a.y + t * dy };
+                    if (ptsDist(pt, proj) < hitRadius) {
+                        return { utilIdx: i, segIdx: j, insertAt: j + 1, projPt: proj };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function applyDragTarget(pt) {
+            if (dragTarget.isUtil) {
+                utilityLines[dragTarget.utilIdx].points[dragTarget.polyIdx] = { x: pt.x, y: pt.y };
+                return;
+            }
+            const m = measurements[dragTarget.measIdx];
+            if (m.type === 'polyline') {
+                m.points[dragTarget.polyIdx] = { x: pt.x, y: pt.y };
+            } else if (dragTarget.pointKey === 'start') {
+                m.x1 = pt.x; m.y1 = pt.y;
+            } else {
+                m.x2 = pt.x; m.y2 = pt.y;
+            }
+        }
+
+        function recalcMeasurement(idx) {
+            if (dragTarget && dragTarget.isUtil) {
+                recalcUtility(dragTarget.utilIdx);
+                return;
+            }
+            const m = measurements[idx];
+            if (!scalePtPerUnit) return;
+            if (m.type === 'polyline') {
+                let total = 0;
+                for (let i = 1; i < m.points.length; i++) {
+                    total += ptsDist(m.points[i - 1], m.points[i]);
+                }
+                m.label = formatDist(total / scalePtPerUnit, scaleUnit);
+            } else {
+                const dist = ptsDist({ x: m.x1, y: m.y1 }, { x: m.x2, y: m.y2 });
+                m.label = formatDist(dist / scalePtPerUnit, scaleUnit);
+            }
+        }
+
+        function recalcUtility(idx) {
+            const u = utilityLines[idx];
+            if (!scalePtPerUnit) return;
+            let total = 0;
+            for (let i = 1; i < u.points.length; i++) {
+                total += ptsDist(u.points[i - 1], u.points[i]);
+            }
+            u.label = formatDist(total / scalePtPerUnit, scaleUnit);
+        }
+
+        // ───────── SVG Overlay ─────────
+        // SVG viewBox is in PDF points, so annotations stay accurate at any zoom.
+
+        // How many PDF points = 1 screen pixel at current zoom
+        function ptsPerScreenPx() {
+            return 1 / (zoom * RENDER_SCALE);
+        }
+
+        function rebuildSVG() {
+            svgEl.setAttribute('viewBox', `0 0 ${pdfPageWidth} ${pdfPageHeight}`);
+
+            // Scale all decoration sizes so they look constant on screen
+            const s = ptsPerScreenPx();
+            const dotR = 4 * s;       // 4 screen-px radius
+            const pendingR = 5 * s;
+            const strokeW = 2 * s;
+            const capLen = 6 * s;
+            const fontSize = 14 * s;
+            const labelOffset = 8 * s;
+            const textStroke = 4 * s;
+
+            const sz = { dotR, strokeW, capLen, fontSize, labelOffset, textStroke, pendingR };
+            let html = '';
+
+            for (const m of measurements) {
+                if (m.type === 'polyline') {
+                    html += polylineHTML(m.points, m.label, sz);
+                } else {
+                    html += measLineHTML(m.x1, m.y1, m.x2, m.y2, m.label, 'measure', sz);
+                }
+            }
+
+            // Utility lines
+            for (const u of utilityLines) {
+                html += utilityLineHTML(u.points, u.utilType, u.color, sz);
+            }
+
+            // In-progress utility polyline — use the active type color
+            if (utilPolyPts.length > 0 && activeUtilType) {
+                const previewPts = [...utilPolyPts];
+                if (cursorPt && mode === 'utility') previewPts.push(cursorPt);
+                html += utilityLineHTML(previewPts, activeUtilType, UTIL_COLORS[activeUtilType], sz, true);
+            }
+
+            // In-progress polyline (with rubber-band to cursor)
+            if (polyPoints.length > 0) {
+                const previewPts = [...polyPoints];
+                if (cursorPt && mode === 'polyline') previewPts.push(cursorPt);
+                html += polylineHTML(previewPts, null, sz, true);
+            }
+
+            // Pending single tap point + rubber-band line to cursor
+            if (tapPoint) {
+                if (tapPoint.snapped) {
+                    html += `<circle cx="${tapPoint.x}" cy="${tapPoint.y}" r="${pendingR * 2.5}" class="snap-ring" stroke-width="${strokeW}"/>`;
+                }
+                html += `<circle cx="${tapPoint.x}" cy="${tapPoint.y}" r="${pendingR}" class="pending-dot" stroke-width="${strokeW}"/>`;
+
+                // Rubber-band line from first tap to cursor with live distance
+                if (cursorPt && (mode === 'measure' || mode === 'scale')) {
+                    const d = `${6 * ptsPerScreenPx()} ${4 * ptsPerScreenPx()}`;
+                    html += `<line x1="${tapPoint.x}" y1="${tapPoint.y}" x2="${cursorPt.x}" y2="${cursorPt.y}"
+                        stroke="#FF8800" stroke-width="${strokeW}" stroke-dasharray="${d}" opacity="0.7"/>`;
+                    html += `<circle cx="${cursorPt.x}" cy="${cursorPt.y}" r="${pendingR * 0.7}" fill="#FF8800" opacity="0.6"/>`;
+
+                    // Live distance label
+                    if (scalePtPerUnit && mode === 'measure') {
+                        const liveDist = ptsDist(tapPoint, cursorPt) / scalePtPerUnit;
+                        const liveLabel = formatDist(liveDist, scaleUnit);
+                        const lmx = (tapPoint.x + cursorPt.x) / 2;
+                        const lmy = (tapPoint.y + cursorPt.y) / 2;
+                        const ang = Math.atan2(cursorPt.y - tapPoint.y, cursorPt.x - tapPoint.x) * 180 / Math.PI;
+                        const tAng = (ang > 90 || ang < -90) ? ang + 180 : ang;
+                        html += `<text x="${lmx}" y="${lmy - labelOffset}" text-anchor="middle"
+                            transform="rotate(${tAng}, ${lmx}, ${lmy - labelOffset})"
+                            style="font-size:${fontSize}px; stroke-width:${textStroke}px; fill:#FF8800; stroke:rgba(0,0,0,0.85); paint-order:stroke fill; font-weight:bold;">${liveLabel}</text>`;
+                    }
+                }
+            }
+            // Show snap points if toggled on
+            if (showSnapPoints && snapPoints.length > 0) {
+                const sr = 2 * ptsPerScreenPx();
+                for (const sp of snapPoints) {
+                    html += `<circle cx="${sp.x}" cy="${sp.y}" r="${sr}" fill="#00FF88" opacity="0.5"/>`;
+                }
+            }
+
+            svgEl.innerHTML = html;
+        }
+
+        function polylineHTML(pts, totalLabel, sz, inProgress = false) {
+            if (pts.length < 1) return '';
+            let html = '';
+            const cls = inProgress ? 'scale' : 'measure';
+            const dash = `${6 * ptsPerScreenPx()} ${4 * ptsPerScreenPx()}`;
+            let cumDist = 0;
+
+            // Draw segments with per-segment distance labels
+            for (let i = 0; i < pts.length - 1; i++) {
+                const p1 = pts[i], p2 = pts[i + 1];
+                html += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}"
+                    stroke-width="${sz.strokeW}" stroke-dasharray="${dash}" class="${cls}-line"/>`;
+
+                // Segment distance label
+                if (scalePtPerUnit) {
+                    const segDist = ptsDist(p1, p2) / scalePtPerUnit;
+                    cumDist += segDist;
+                    const mx = (p1.x + p2.x) / 2;
+                    const my = (p1.y + p2.y) / 2;
+                    const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
+                    const textAngle = (angle > 90 || angle < -90) ? angle + 180 : angle;
+                    const segLabel = formatDist(segDist, scaleUnit);
+
+                    // Segment label (smaller font)
+                    const segFontSize = sz.fontSize * 0.85;
+                    html += `<text x="${mx}" y="${my - sz.labelOffset}" text-anchor="middle"
+                        transform="rotate(${textAngle}, ${mx}, ${my - sz.labelOffset})"
+                        class="meas-label ${cls}-label"
+                        style="font-size:${segFontSize}px; stroke-width:${sz.textStroke}px">${segLabel}</text>`;
+
+                    // Running total at each vertex (except first)
+                    if (pts.length > 2) {
+                        const totalHere = formatDist(cumDist, scaleUnit);
+                        html += `<text x="${p2.x}" y="${p2.y - sz.labelOffset * 2}" text-anchor="middle"
+                            class="meas-label measure-label"
+                            style="font-size:${sz.fontSize}px; stroke-width:${sz.textStroke}px; fill:#00DDFF;">${totalHere}</text>`;
+                    }
+                }
+            }
+
+            // Draw dots at each vertex
+            for (const p of pts) {
+                if (p.snapped && inProgress) {
+                    html += `<circle cx="${p.x}" cy="${p.y}" r="${sz.pendingR * 2.5}" class="snap-ring" stroke-width="${sz.strokeW}"/>`;
+                }
+                html += `<circle cx="${p.x}" cy="${p.y}" r="${inProgress ? sz.pendingR : sz.dotR}"
+                    class="${inProgress ? 'pending-dot' : 'meas-dot measure-dot'}" stroke-width="${sz.strokeW * 0.75}"/>`;
+            }
+
+            // Final total label (for completed polylines)
+            if (totalLabel && pts.length >= 2) {
+                const last = pts[pts.length - 1];
+                html += `<text x="${last.x}" y="${last.y - sz.labelOffset * 3}" text-anchor="middle"
+                    class="meas-label measure-label"
+                    style="font-size:${sz.fontSize * 1.2}px; stroke-width:${sz.textStroke}px; fill:#FFD700;">Total: ${totalLabel}</text>`;
+            }
+            return html;
+        }
+
+        function utilityLineHTML(pts, utilType, color, sz, inProgress = false) {
+            if (pts.length < 1) return '';
+            let html = '';
+            const lineW = sz.strokeW * utilLineWidth;
+            const typeLabel = utilType ? UTIL_LABELS[utilType] : '';
+            let cumDist = 0;
+
+            // Draw thick colored line segments with per-segment distance
+            for (let i = 0; i < pts.length - 1; i++) {
+                const p1 = pts[i], p2 = pts[i+1];
+                html += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}"
+                    stroke="${color}" stroke-width="${lineW}" stroke-linecap="round"
+                    opacity="${inProgress ? 0.7 * utilOpacity : utilOpacity}"
+                    ${inProgress ? 'stroke-dasharray="' + (8*ptsPerScreenPx()) + ' ' + (4*ptsPerScreenPx()) + '"' : ''}/>`;
+
+                const mx = (p1.x + p2.x) / 2;
+                const my = (p1.y + p2.y) / 2;
+                const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
+                const tAngle = (angle > 90 || angle < -90) ? angle + 180 : angle;
+
+                // Segment distance
+                if (scalePtPerUnit) {
+                    const segDist = ptsDist(p1, p2) / scalePtPerUnit;
+                    cumDist += segDist;
+                    const segLabel = formatDist(segDist, scaleUnit);
+                    const segFs = sz.fontSize * 0.8;
+                    html += `<text x="${mx}" y="${my - sz.labelOffset}" text-anchor="middle"
+                        transform="rotate(${tAngle}, ${mx}, ${my - sz.labelOffset})"
+                        style="font-size:${segFs}px; font-weight:bold; fill:#fff;
+                        paint-order:stroke fill; stroke:${color}; stroke-width:${sz.textStroke}px;
+                        stroke-linejoin:round;">${segLabel}</text>`;
+                }
+
+                // Type label on every other segment (not too cluttered)
+                if (typeLabel && !inProgress && i % 2 === 0) {
+                    html += `<text x="${mx}" y="${my + sz.labelOffset * 1.5}" text-anchor="middle"
+                        transform="rotate(${tAngle}, ${mx}, ${my + sz.labelOffset * 1.5})"
+                        style="font-size:${sz.fontSize}px; font-weight:bold; fill:${color};
+                        paint-order:stroke fill; stroke:#000; stroke-width:${sz.textStroke}px;
+                        stroke-linejoin:round;">${typeLabel}</text>`;
+                }
+
+                // Running total at each vertex (for 3+ points)
+                if (scalePtPerUnit && pts.length > 2 && i < pts.length - 2) {
+                    const totalLabel = formatDist(cumDist, scaleUnit);
+                    html += `<text x="${p2.x}" y="${p2.y - sz.labelOffset * 2.5}" text-anchor="middle"
+                        style="font-size:${sz.fontSize * 0.7}px; fill:#fff;
+                        paint-order:stroke fill; stroke:rgba(0,0,0,0.7); stroke-width:${sz.textStroke}px;
+                        stroke-linejoin:round;">${totalLabel}</text>`;
+                }
+            }
+
+            // Total label at end
+            if (scalePtPerUnit && pts.length >= 2 && !inProgress) {
+                const last = pts[pts.length - 1];
+                const totalLabel = formatDist(cumDist, scaleUnit);
+                const typeName = utilType ? utilType.charAt(0).toUpperCase() + utilType.slice(1) + ': ' : '';
+                html += `<text x="${last.x}" y="${last.y - sz.labelOffset * 3}" text-anchor="middle"
+                    style="font-size:${sz.fontSize * 1.1}px; font-weight:bold; fill:${color};
+                    paint-order:stroke fill; stroke:#000; stroke-width:${sz.textStroke * 1.2}px;
+                    stroke-linejoin:round;">${typeName}${totalLabel}</text>`;
+            }
+
+            // Dots at vertices
+            for (const p of pts) {
+                html += `<circle cx="${p.x}" cy="${p.y}" r="${inProgress ? sz.pendingR : sz.dotR}"
+                    fill="${color}" stroke="#fff" stroke-width="${sz.strokeW * 0.5}"/>`;
+            }
+
+            return html;
+        }
+
+        function measLineHTML(x1, y1, x2, y2, label, cls, sz) {
+            const mx = (x1 + x2) / 2;
+            const my = (y1 + y2) / 2;
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            const textAngle = (angle > 90 || angle < -90) ? angle + 180 : angle;
+
+            // End caps perpendicular to line
+            const rad = (angle + 90) * Math.PI / 180;
+            const cx = sz.capLen * Math.cos(rad);
+            const cy = sz.capLen * Math.sin(rad);
+
+            // Dash pattern scaled to zoom
+            const dash = `${6 * ptsPerScreenPx()} ${4 * ptsPerScreenPx()}`;
+
+            return `
+                <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${cls}-line" stroke-width="${sz.strokeW}" stroke-dasharray="${dash}"/>
+                <line x1="${x1 - cx}" y1="${y1 - cy}" x2="${x1 + cx}" y2="${y1 + cy}" stroke-width="${sz.strokeW}" class="${cls}-line"/>
+                <line x1="${x2 - cx}" y1="${y2 - cy}" x2="${x2 + cx}" y2="${y2 + cy}" stroke-width="${sz.strokeW}" class="${cls}-line"/>
+                <circle cx="${x1}" cy="${y1}" r="${sz.dotR}" class="meas-dot ${cls}-dot" stroke-width="${sz.strokeW * 0.75}"/>
+                <circle cx="${x2}" cy="${y2}" r="${sz.dotR}" class="meas-dot ${cls}-dot" stroke-width="${sz.strokeW * 0.75}"/>
+                <text x="${mx}" y="${my - sz.labelOffset}" text-anchor="middle"
+                      transform="rotate(${textAngle}, ${mx}, ${my - sz.labelOffset})"
+                      class="meas-label ${cls}-label"
+                      style="font-size:${sz.fontSize}px; stroke-width:${sz.textStroke}px">${label}</text>
+            `;
+        }
+
+        // ───────── Mode Switching ─────────
+
+        function setMode(m) {
+            if (mode === 'polyline' && m !== 'polyline' && polyPoints.length >= 2) {
+                finishPolyline();
+            }
+            if (mode === 'utility' && m !== 'utility' && utilPolyPts.length >= 2) {
+                finishUtilityLine();
+            }
+            mode = m;
+            tapPoint = null;
+            if (m !== 'polyline') polyPoints = [];
+            if (m !== 'utility') utilPolyPts = [];
+            $('#btn-scale').classList.toggle('active', m === 'scale');
+            $('#btn-measure').classList.toggle('active', m === 'measure');
+            $('#btn-polyline').classList.toggle('active', m === 'polyline');
+            $('#btn-utility').classList.toggle('active', m === 'utility');
+            viewer.classList.toggle('crosshair', m !== 'none' || compareMode);
+
+            if (m === 'scale') {
+                setStatus('Tap two points on a known distance.');
+            } else if (m === 'measure') {
+                setStatus('Tap two points to measure.');
+            } else if (m === 'polyline') {
+                setStatus('Tap points along a path. Tap Finish to complete.');
+            } else if (m === 'utility') {
+                setStatus('Tap points along the utility line. Tap Finish to complete.');
+            } else {
+                setStatus('Use two fingers to pan/zoom. Set Scale then Measure.');
+            }
+            rebuildSVG();
+        }
+
+        function setStatus(msg) {
+            $('#status').innerHTML = msg;
+        }
+
+        // ───────── Measurements List ─────────
+
+        function updateMeasurementsList() {
+            const el = $('#measurements');
+            if (measurements.length === 0) {
+                el.classList.remove('show');
+                return;
+            }
+            el.classList.add('show');
+            el.innerHTML = measurements.map((m, i) => `
+                <div class="meas-item">
+                    <span>#${i + 1}: <span class="dist">${m.label}</span></span>
+                    <button onclick="window._deleteMeas(${m.id})">X</button>
+                </div>
+            `).join('');
+        }
+
+        function updateUtilityList() {
+            const el = $('#utility-list');
+            if (utilityLines.length === 0) {
+                el.classList.remove('show');
+                return;
+            }
+            el.classList.add('show');
+
+            // Group by type and calculate totals
+            const totals = {};
+            let html = '';
+
+            for (let i = 0; i < utilityLines.length; i++) {
+                const u = utilityLines[i];
+                const typeName = u.utilType.charAt(0).toUpperCase() + u.utilType.slice(1);
+                if (!totals[u.utilType]) totals[u.utilType] = { dist: 0, count: 0 };
+
+                // Calculate distance for this line
+                let dist = 0;
+                if (scalePtPerUnit) {
+                    for (let j = 1; j < u.points.length; j++) {
+                        dist += ptsDist(u.points[j-1], u.points[j]);
+                    }
+                    dist = dist / scalePtPerUnit;
+                }
+                totals[u.utilType].dist += dist;
+                totals[u.utilType].count++;
+
+                const distLabel = scalePtPerUnit ? formatDist(dist, scaleUnit) : '--';
+                html += `<div class="util-item">
+                    <span><span class="util-color" style="background:${u.color}"></span>${typeName}: ${distLabel}</span>
+                    <button onclick="window._deleteUtil(${u.id})">X</button>
+                </div>`;
+            }
+
+            // Totals per type
+            html += '<div style="margin-top:4px;">';
+            for (const [type, data] of Object.entries(totals)) {
+                const typeName = type.charAt(0).toUpperCase() + type.slice(1);
+                const color = UTIL_COLORS[type];
+                const totalLabel = scalePtPerUnit ? formatDist(data.dist, scaleUnit) : '--';
+                html += `<div class="util-item util-total-row">
+                    <span><span class="util-color" style="background:${color}"></span><strong>${typeName} Total (${data.count})</strong></span>
+                    <span style="color:${color}; font-weight:bold;">${totalLabel}</span>
+                </div>`;
+            }
+            html += '</div>';
+
+            el.innerHTML = html;
+            updateUtilTotalsInModal();
+        }
+
+        function updateUtilTotalsInModal() {
+            const container = $('#util-totals');
+            const body = $('#util-totals-body');
+            if (utilityLines.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
+            const totals = {};
+            for (const u of utilityLines) {
+                if (!totals[u.utilType]) totals[u.utilType] = { dist: 0, count: 0 };
+                if (scalePtPerUnit) {
+                    for (let j = 1; j < u.points.length; j++) {
+                        totals[u.utilType].dist += ptsDist(u.points[j-1], u.points[j]) / scalePtPerUnit;
+                    }
+                }
+                totals[u.utilType].count++;
+            }
+            // Include in-progress line
+            if (utilPolyPts.length >= 2 && activeUtilType && scalePtPerUnit) {
+                if (!totals[activeUtilType]) totals[activeUtilType] = { dist: 0, count: 0 };
+                for (let j = 1; j < utilPolyPts.length; j++) {
+                    totals[activeUtilType].dist += ptsDist(utilPolyPts[j-1], utilPolyPts[j]) / scalePtPerUnit;
+                }
+            }
+            let html = '';
+            for (const [type, data] of Object.entries(totals)) {
+                const name = type.charAt(0).toUpperCase() + type.slice(1);
+                const color = UTIL_COLORS[type];
+                const label = scalePtPerUnit ? formatDist(data.dist, scaleUnit) : '--';
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:12px;">
+                    <span><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:${color}; margin-right:5px; vertical-align:middle;"></span>${name} (${data.count})</span>
+                    <span style="color:${color}; font-weight:600;">${label}</span>
+                </div>`;
+            }
+            body.innerHTML = html;
+        }
+
+        window._deleteUtil = (id) => {
+            utilityLines = utilityLines.filter(u => u.id !== id);
+            savePageData();
+            rebuildSVG();
+            updateUtilityList();
+        };
+
+        window._deleteMeas = (id) => {
+            measurements = measurements.filter(m => m.id !== id);
+            savePageData();
+            rebuildSVG();
+            updateMeasurementsList();
+            if (measurements.length === 0) sideDisable('#btn-undo');
+        };
+
+        // ───────── Button Wiring ─────────
+
+        const openFile = () => $('#file-input').click();
+        $('#btn-open').addEventListener('click', openFile);
+        $('#btn-open-empty').addEventListener('click', openFile);
+        $('#file-input').addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.type === 'application/pdf') {
+                loadPDF(file);
+            } else if (file.type.startsWith('image/')) {
+                loadImage(file);
+            }
+        });
+
+        $('#btn-first').addEventListener('click', () => {
+            if (currentPage > 1) renderPage(1);
+        });
+        $('#btn-prev').addEventListener('click', () => {
+            if (currentPage > 1) renderPage(currentPage - 1);
+        });
+        $('#btn-next').addEventListener('click', () => {
+            if (currentPage < totalPages) renderPage(currentPage + 1);
+        });
+        $('#btn-last').addEventListener('click', () => {
+            if (currentPage < totalPages) renderPage(totalPages);
+        });
+
+        $('#btn-zoom-in').addEventListener('click', () => {
+            const rect = viewer.getBoundingClientRect();
+            const mx = rect.width / 2;
+            const my = rect.height / 2;
+            const newZoom = Math.min(8, zoom * 1.4);
+            const ratio = newZoom / zoom;
+            panX = mx - ratio * (mx - panX);
+            panY = my - ratio * (my - panY);
+            zoom = newZoom;
+            applyTransform();
+        });
+
+        $('#btn-zoom-out').addEventListener('click', () => {
+            const rect = viewer.getBoundingClientRect();
+            const mx = rect.width / 2;
+            const my = rect.height / 2;
+            const newZoom = Math.max(0.1, zoom / 1.4);
+            const ratio = newZoom / zoom;
+            panX = mx - ratio * (mx - panX);
+            panY = my - ratio * (my - panY);
+            zoom = newZoom;
+            applyTransform();
+        });
+
+        // ── Page Input ──
+        $('#page-input').addEventListener('change', () => {
+            let pg = parseInt($('#page-input').value);
+            if (isNaN(pg) || pg < 1) pg = 1;
+            if (pg > totalPages) pg = totalPages;
+            if (pg !== currentPage && pdf) renderPage(pg);
+        });
+        $('#page-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.target.blur(); }
+        });
+        // Select all on focus for easy overwrite
+        $('#page-input').addEventListener('focus', e => e.target.select());
+
+        $('#btn-scale').addEventListener('click', () => {
+            if (mode === 'scale') {
+                setMode('none');
+            } else {
+                setMode('scale');
+                setStatus('Tap two points on a known distance.');
+            }
+        });
+
+        $('#btn-measure').addEventListener('click', () => {
+            if ($('#btn-measure').classList.contains('is-disabled')) return;
+            if (!scalePtPerUnit) {
+                setStatus('Set the scale first.');
+                return;
+            }
+            setMode(mode === 'measure' ? 'none' : 'measure');
+        });
+
+        $('#btn-polyline').addEventListener('click', () => {
+            if ($('#btn-polyline').classList.contains('is-disabled')) return;
+            if (!scalePtPerUnit) {
+                setStatus('Set the scale first.');
+                return;
+            }
+            if (mode === 'polyline') {
+                if (polyPoints.length >= 2) finishPolyline();
+                setMode('none');
+            } else {
+                setMode('polyline');
+            }
+        });
+
+        $('#btn-utility').addEventListener('click', () => {
+            if ($('#btn-utility').classList.contains('is-disabled')) return;
+            if (mode === 'utility') {
+                if (utilPolyPts.length >= 2) finishUtilityLine();
+                setMode('none');
+                $('#utility-modal').style.display = 'none';
+            } else {
+                showUtilityModal();
+            }
+        });
+
+        // ── Scale Modal ──
+        function showScaleModal() {
+            const modal = $('#scale-modal');
+            const box = $('#scale-modal-box');
+            modal.style.display = 'block';
+            $('#scale-val').value = '';
+            box.style.left = Math.max(0, window.innerWidth - 360) + 'px';
+            box.style.top = '60px';
+            setTimeout(() => $('#scale-val').focus(), 100);
+        }
+
+        function hideScaleModal() {
+            $('#scale-modal').style.display = 'none';
+        }
+
+        // ── Draggable modals ──
+        function makeDraggable(handleEl, boxEl) {
+            let dragOffX = 0, dragOffY = 0, dragging = false;
+
+            function onStart(e) {
+                // Don't drag if clicking a button/input inside the handle
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+                dragging = true;
+                const pos = e.touches ? e.touches[0] : e;
+                const rect = boxEl.getBoundingClientRect();
+                dragOffX = pos.clientX - rect.left;
+                dragOffY = pos.clientY - rect.top;
+                e.preventDefault();
+            }
+
+            function onMove(e) {
+                if (!dragging) return;
+                const pos = e.touches ? e.touches[0] : e;
+                let newX = pos.clientX - dragOffX;
+                let newY = pos.clientY - dragOffY;
+                // Keep on screen
+                newX = Math.max(0, Math.min(window.innerWidth - 60, newX));
+                newY = Math.max(0, Math.min(window.innerHeight - 60, newY));
+                boxEl.style.left = newX + 'px';
+                boxEl.style.top = newY + 'px';
+                e.preventDefault();
+            }
+
+            function onEnd() { dragging = false; }
+
+            handleEl.addEventListener('mousedown', onStart);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
+            handleEl.addEventListener('touchstart', onStart, { passive: false });
+            window.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('touchend', onEnd);
+        }
+
+        makeDraggable($('#scale-drag-handle'), $('#scale-modal-box'));
+        makeDraggable($('#utility-drag-handle'), $('#utility-modal-box'));
+
+        // From tapped calibration points
+        $('#scale-confirm').addEventListener('click', () => {
+            const val = parseFloat($('#scale-val').value);
+            if (!val || val <= 0 || !scaleCalibPts) return;
+            scalePtPerUnit = scaleCalibPts.ptsDist / val;
+            scaleUnit = $('#scale-unit').value;
+            scaleCalibPts = null;
+            scaleDisplayLabel = `1" = ${val} ${scaleUnit}`;
+            hideScaleModal();
+            setMode('measure');
+            setStatus(`Scale set. Tap two points to measure.`);
+            sideEnable('#btn-measure');
+            sideEnable('#btn-polyline');
+            $('#btn-clear-all').disabled = false;
+            updateScaleDisplay();
+        });
+
+        $('#scale-val').addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.target.blur(); $('#scale-confirm').click(); }
+        });
+
+        // ── Auto-detect scale from PDF text ──
+        $('#scale-close').addEventListener('click', () => { $('#scale-cancel').click(); });
+        $('#scale-cancel').addEventListener('click', () => {
+            scaleCalibPts = null;
+            hideScaleModal();
+            setMode('none');
+        });
+
+        $('#btn-undo').addEventListener('click', () => {
+            if ($('#btn-undo').classList.contains('is-disabled')) return;
+            // Undo the most recent item (measurement or utility)
+            const lastMeas = measurements.length > 0 ? measurements[measurements.length - 1] : null;
+            const lastUtil = utilityLines.length > 0 ? utilityLines[utilityLines.length - 1] : null;
+
+            if (lastUtil && (!lastMeas || lastUtil.id > lastMeas.id)) {
+                utilityLines.pop();
+                updateUtilityList();
+            } else if (lastMeas) {
+                measurements.pop();
+                updateMeasurementsList();
+            }
+            savePageData();
+            rebuildSVG();
+            if (measurements.length === 0 && utilityLines.length === 0) {
+                sideDisable('#btn-undo');
+            }
+        });
+
+        $('#btn-clear-all').addEventListener('click', () => {
+            if (measurements.length === 0 && utilityLines.length === 0 && !scalePtPerUnit) return;
+            if (!confirm('Clear all measurements, utilities, and scale?')) return;
+            measurements = [];
+            utilityLines = [];
+            pageAnnotations = {};
+            polyPoints = [];
+            utilPolyPts = [];
+            tapPoint = null;
+            cursorPt = null;
+            scalePtPerUnit = null;
+            scaleCalibPts = null;
+            updateScaleDisplay();
+            sideDisable('#btn-measure');
+            sideDisable('#btn-polyline');
+            sideDisable('#btn-undo');
+            $('#btn-clear-all').disabled = true;
+            $('#measurements').classList.remove('show');
+            $('#utility-list').classList.remove('show');
+            rebuildSVG();
+            setMode('none');
+            setStatus('Cleared. Set scale to start measuring.');
+        });
+
+        $('#btn-help').addEventListener('click', () => {
+            $('#help-overlay').classList.add('show');
+        });
+        $('#help-close').addEventListener('click', () => {
+            $('#help-overlay').classList.remove('show');
+        });
+        $('#help-overlay').addEventListener('click', e => {
+            if (e.target === $('#help-overlay')) $('#help-overlay').classList.remove('show');
+        });
+
+        $('#legend-toggle').addEventListener('click', () => {
+            const body = $('#legend-body');
+            body.classList.toggle('show');
+            $('#legend-toggle').textContent = body.classList.contains('show') ? '▾ Legend' : '▸ Legend';
+        });
+
+        $('#btn-show-snaps').addEventListener('click', () => {
+            showSnapPoints = !showSnapPoints;
+            $('#btn-show-snaps').classList.toggle('active', showSnapPoints);
+            rebuildSVG();
+            setStatus(showSnapPoints
+                ? `Showing ${snapPoints.length} snap points (green dots)`
+                : 'Snap points hidden');
+        });
+
+        $('#btn-close').addEventListener('click', () => {
+            if (!confirm('Close the current file? All measurements will be lost.')) return;
+            pdf = null;
+            currentPage = 1;
+            totalPages = 0;
+            measurements = [];
+            utilityLines = [];
+            pageAnnotations = {};
+            polyPoints = [];
+            utilPolyPts = [];
+            tapPoint = null;
+            cursorPt = null;
+            scalePtPerUnit = null;
+            scaleCalibPts = null;
+            snapPoints = [];
+            pdfPageWidth = 0;
+            pdfPageHeight = 0;
+            pdfCanvas.width = 0;
+            pdfCanvas.height = 0;
+            svgEl.innerHTML = '';
+            viewer.style.display = 'none';
+            $('#empty').style.display = '';
+            $('#measurements').classList.remove('show');
+            $('#utility-list').classList.remove('show');
+            $('#btn-close').style.display = 'none';
+            sideDisable('#btn-measure');
+            sideDisable('#btn-polyline');
+            sideDisable('#btn-undo');
+            $('#btn-prev').disabled = true;
+            $('#btn-next').disabled = true;
+            $('#file-input').value = '';
+            setMode('none');
+            setStatus('Open a PDF to start');
+        });
+        // ═══════════════════════════════════════════
+        // ═══════════ COMPARE / OVERLAY ═══════════
+        // ═══════════════════════════════════════════
+
+        let compareMode = false;
+        let compareStep = 'base'; // 'base' | 'new' | 'overlay'
+        let baseRegPts = [];      // 4 points on base (existing) page
+        let newRegPts = [];       // 4 points on new page
+        let newPdf = null;
+        let newPdfPage = 1;
+        let newPdfTotal = 0;
+        let newPageWidth = 0, newPageHeight = 0;
+
+        // Stash the base page rendering
+        let baseImageData = null;
+        let basePgWidth = 0, basePgHeight = 0;
+
+        const compareCanvas = $('#compare-canvas');
+        const compareCtx = compareCanvas.getContext('2d');
+
+        $('#btn-compare').addEventListener('click', () => {
+            if (!pdf) return;
+            compareMode = true;
+            compareStep = 'base';
+            baseRegPts = [];
+            newRegPts = [];
+            newPdf = null;
+            $('#compare-modal').style.display = 'block';
+            // Position modal
+            const box = $('#compare-modal-box');
+            box.style.left = Math.max(0, window.innerWidth - 420) + 'px';
+            box.style.top = '60px';
+            $('#cmp-step1').style.display = '';
+            $('#cmp-step2').style.display = 'none';
+            $('#cmp-exit-overlay').style.display = 'none';
+            $('#cmp-cancel').style.display = '';
+            updateCompareUI();
+            setMode('none');
+            viewer.classList.add('crosshair');
+            setStatus('Click 4 registration points on the existing plan.');
+        });
+
+        makeDraggable($('#compare-drag-handle'), $('#compare-modal-box'));
+
+        function updateCompareUI() {
+            $('#cmp-base-count').textContent = `Points: ${baseRegPts.length} / 4`;
+            $('#cmp-new-count').textContent = `Points: ${newRegPts.length} / 4`;
+            $('#cmp-overlay').disabled = !(newRegPts.length === 4 && baseRegPts.length === 4);
+
+            if (baseRegPts.length === 4 && compareStep === 'base') {
+                compareStep = 'new';
+                $('#cmp-step1').style.display = 'none';
+                $('#cmp-step2').style.display = '';
+                setStatus('Open the new PDF and click the same 4 points.');
+            }
+            rebuildSVG();
+        }
+
+        // Intercept taps when in compare mode
+        const origHandleTap = handleTap;
+        function handleTapCompare(clientX, clientY) {
+            if (!compareMode) return false;
+
+            const pt = snapTo(screenToPdfPts(clientX, clientY));
+            if (pt.x < 0 || pt.y < 0 || pt.x > pdfPageWidth || pt.y > pdfPageHeight) return true;
+
+            if (compareStep === 'base' && baseRegPts.length < 4) {
+                baseRegPts.push(pt);
+                updateCompareUI();
+                return true;
+            }
+            if (compareStep === 'new' && newRegPts.length < 4) {
+                newRegPts.push(pt);
+                updateCompareUI();
+                return true;
+            }
+            return true;
+        }
+
+        function drawRegPoints() {
+            if (!compareMode) return '';
+            const s = ptsPerScreenPx();
+            const r = 6 * s;
+            const sw = 2 * s;
+            const fs = 12 * s;
+            let html = '';
+
+            const pts = compareStep === 'base' ? baseRegPts :
+                        compareStep === 'new' ? newRegPts : [];
+            const color = compareStep === 'base' ? '#FF4444' : '#00DD00';
+
+            for (let i = 0; i < pts.length; i++) {
+                const p = pts[i];
+                html += `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${color}" stroke="#fff" stroke-width="${sw}"/>`;
+                html += `<text x="${p.x + r * 1.5}" y="${p.y + fs * 0.3}" fill="${color}" style="font-size:${fs}px; font-weight:bold; paint-order:stroke fill; stroke:#000; stroke-width:${sw * 1.5}px;">${i + 1}</text>`;
+            }
+            return html;
+        }
+
+        // --- Compare SVG overlay for registration points ---
+        const cmpSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        cmpSvg.id = 'cmp-svg';
+        cmpSvg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;';
+        canvasWrap.appendChild(cmpSvg);
+
+        function updateCompareSVG() {
+            if (!compareMode || pdfPageWidth === 0) { cmpSvg.innerHTML = ''; return; }
+            cmpSvg.setAttribute('viewBox', `0 0 ${pdfPageWidth} ${pdfPageHeight}`);
+            cmpSvg.innerHTML = drawRegPoints();
+        }
+
+        // Update compare SVG whenever main SVG updates
+        setInterval(() => { if (compareMode) updateCompareSVG(); }, 100);
+
+        // Override handleTap to intercept compare mode taps
+        const _origHandleTap = handleTap;
+        handleTap = function(clientX, clientY) {
+            if (compareMode) {
+                handleTapCompare(clientX, clientY);
+                return;
+            }
+            _origHandleTap(clientX, clientY);
+        };
+
+        // --- New PDF loading for comparison ---
+        $('#cmp-open-new').addEventListener('click', () => $('#file-input-compare').click());
+
+        $('#file-input-compare').addEventListener('change', async e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const buf = await file.arrayBuffer();
+            newPdf = await pdfjsLib.getDocument({ data: buf }).promise;
+            newPdfTotal = newPdf.numPages;
+            newPdfPage = 1;
+            $('#cmp-new-file').textContent = file.name;
+
+            // Stash the current base page image
+            basePgWidth = pdfCanvas.width;
+            basePgHeight = pdfCanvas.height;
+            baseImageData = ctx.getImageData(0, 0, basePgWidth, basePgHeight);
+
+            await renderNewPdfPage(1);
+        });
+
+        async function renderNewPdfPage(num) {
+            if (!newPdf) return;
+            const page = await newPdf.getPage(num);
+            const nv = page.getViewport({ scale: 1 });
+            newPageWidth = nv.width;
+            newPageHeight = nv.height;
+            const vp = page.getViewport({ scale: RENDER_SCALE });
+            pdfCanvas.width = vp.width;
+            pdfCanvas.height = vp.height;
+            await page.render({ canvasContext: ctx, viewport: vp }).promise;
+            newPdfPage = num;
+            pdfPageWidth = nv.width;
+            pdfPageHeight = nv.height;
+            $('#cmp-new-page').textContent = `${num} / ${newPdfTotal}`;
+            $('#cmp-new-prev').disabled = num <= 1;
+            $('#cmp-new-next').disabled = num >= newPdfTotal;
+            fitToScreen();
+        }
+
+        $('#cmp-new-prev').addEventListener('click', () => {
+            if (newPdfPage > 1) renderNewPdfPage(newPdfPage - 1);
+        });
+        $('#cmp-new-next').addEventListener('click', () => {
+            if (newPdfPage < newPdfTotal) renderNewPdfPage(newPdfPage + 1);
+        });
+
+        $('#cmp-clear-base').addEventListener('click', () => {
+            baseRegPts = [];
+            updateCompareUI();
+        });
+        $('#cmp-clear-new').addEventListener('click', () => {
+            newRegPts = [];
+            updateCompareUI();
+        });
+
+        // --- Generate Overlay ---
+        $('#cmp-overlay').addEventListener('click', () => {
+            if (baseRegPts.length !== 4 || newRegPts.length !== 4) return;
+            generateOverlay();
+        });
+
+        async function generateOverlay() {
+            setStatus('Generating overlay...');
+
+            // Capture the new page image into a temp canvas
+            const newW = pdfCanvas.width;
+            const newH = pdfCanvas.height;
+            const newCanvas = document.createElement('canvas');
+            newCanvas.width = newW;
+            newCanvas.height = newH;
+            newCanvas.getContext('2d').drawImage(pdfCanvas, 0, 0);
+
+            // Restore the base page onto pdfCanvas
+            pdfCanvas.width = basePgWidth;
+            pdfCanvas.height = basePgHeight;
+            ctx.putImageData(baseImageData, 0, 0);
+
+            // Compute affine transform that maps new→base (least squares, 4 point pairs)
+            // Points in canvas pixel space
+            const src = newRegPts.map(p => [p.x * RENDER_SCALE, p.y * RENDER_SCALE]);
+            const dst = baseRegPts.map(p => [p.x * RENDER_SCALE, p.y * RENDER_SCALE]);
+            const affine = computeAffine(src, dst); // returns [a, b, c, d, e, f]
+
+            // Warp the new image onto a temp canvas aligned to base coords
+            // using canvas setTransform (GPU-accelerated)
+            const warpCanvas = document.createElement('canvas');
+            warpCanvas.width = basePgWidth;
+            warpCanvas.height = basePgHeight;
+            const warpCtx = warpCanvas.getContext('2d');
+            // setTransform(a, b, c, d, e, f) maps src coords → dst coords:
+            // dst_x = a*src_x + c*src_y + e
+            // dst_y = b*src_x + d*src_y + f
+            warpCtx.setTransform(affine[0], affine[1], affine[2], affine[3], affine[4], affine[5]);
+            warpCtx.drawImage(newCanvas, 0, 0);
+            warpCtx.setTransform(1, 0, 0, 1, 0, 0); // reset
+
+            // Now composite: base=red, new=green
+            compareCanvas.width = basePgWidth;
+            compareCanvas.height = basePgHeight;
+            compareCanvas.style.display = 'block';
+
+            const baseData = baseImageData.data;
+            const warpData = warpCtx.getImageData(0, 0, basePgWidth, basePgHeight).data;
+            const compImg = compareCtx.createImageData(basePgWidth, basePgHeight);
+            const comp = compImg.data;
+
+            for (let i = 0; i < baseData.length; i += 4) {
+                const bGray = baseData[i] * 0.3 + baseData[i+1] * 0.59 + baseData[i+2] * 0.11;
+                const nGray = warpData[i] * 0.3 + warpData[i+1] * 0.59 + warpData[i+2] * 0.11;
+
+                const bLine = 255 - bGray; // how dark the existing line is
+                const nLine = 255 - nGray; // how dark the new line is
+                const diff = Math.abs(bLine - nLine);
+                const thresh = 30; // ignore noise below this
+
+                if (diff < thresh) {
+                    // Unchanged — light gray
+                    const g = Math.max(0, 240 - Math.max(bLine, nLine) * 0.6);
+                    comp[i] = g; comp[i+1] = g; comp[i+2] = g; comp[i+3] = 255;
+                } else if (bLine > nLine) {
+                    // Removed (only in existing) — bright red, intensity by difference
+                    const strength = Math.min(255, diff * 2);
+                    comp[i] = 255; comp[i+1] = 40; comp[i+2] = 40; comp[i+3] = strength;
+                } else {
+                    // Added (only in new) — bright cyan/blue, intensity by difference
+                    const strength = Math.min(255, diff * 2);
+                    comp[i] = 0; comp[i+1] = 200; comp[i+2] = 255; comp[i+3] = strength;
+                }
+            }
+
+            // Second pass: draw unchanged lines under the changes
+            // so we get context. Use the compare canvas with the base as background.
+            // First draw the base faintly, then overlay the diff
+            const bgImg = compareCtx.createImageData(basePgWidth, basePgHeight);
+            const bgD = bgImg.data;
+            for (let i = 0; i < baseData.length; i += 4) {
+                const gray = baseData[i] * 0.3 + baseData[i+1] * 0.59 + baseData[i+2] * 0.11;
+                bgD[i] = gray; bgD[i+1] = gray; bgD[i+2] = gray; bgD[i+3] = 255;
+            }
+            compareCtx.putImageData(bgImg, 0, 0);
+            // Overlay the diff on top
+            const diffCanvas = document.createElement('canvas');
+            diffCanvas.width = basePgWidth;
+            diffCanvas.height = basePgHeight;
+            const diffCtx = diffCanvas.getContext('2d');
+            diffCtx.putImageData(compImg, 0, 0);
+            compareCtx.drawImage(diffCanvas, 0, 0);
+
+            compareStep = 'overlay';
+            compareMode = false;
+            viewer.classList.remove('crosshair');
+            cmpSvg.innerHTML = '';
+            $('#cmp-step1').style.display = 'none';
+            $('#cmp-step2').style.display = 'none';
+            $('#cmp-cancel').style.display = 'none';
+            $('#cmp-exit-overlay').style.display = '';
+            setStatus('Overlay: <span style="color:#FF3333;">RED = removed</span> | <span style="color:#00CCFF;">CYAN = added</span> | Gray = unchanged');
+        }
+
+        // --- Affine transform from 4+ point pairs (least squares) ---
+        // Solves for [a,b,c,d,e,f] where:
+        //   dst_x = a*src_x + c*src_y + e
+        //   dst_y = b*src_x + d*src_y + f
+        // Canvas setTransform uses: setTransform(a, b, c, d, e, f)
+        function computeAffine(srcPts, dstPts) {
+            const n = srcPts.length;
+            // Build overdetermined system: A * [a,c,e] = dst_x, A * [b,d,f] = dst_y
+            // A = [[sx, sy, 1], ...] for each point
+            // Solve via normal equations: (A^T A) * x = A^T b
+
+            const ATA = [[0,0,0],[0,0,0],[0,0,0]];
+            const ATbx = [0,0,0];
+            const ATby = [0,0,0];
+
+            for (let i = 0; i < n; i++) {
+                const sx = srcPts[i][0], sy = srcPts[i][1];
+                const dx = dstPts[i][0], dy = dstPts[i][1];
+                const row = [sx, sy, 1];
+
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < 3; c++) {
+                        ATA[r][c] += row[r] * row[c];
+                    }
+                    ATbx[r] += row[r] * dx;
+                    ATby[r] += row[r] * dy;
+                }
+            }
+
+            const solX = solve3x3(ATA, ATbx); // [a, c, e]
+            const solY = solve3x3(ATA, ATby); // [b, d, f]
+
+            // Canvas setTransform order: (a, b, c, d, e, f)
+            return [solX[0], solY[0], solX[1], solY[1], solX[2], solY[2]];
+        }
+
+        function solve3x3(M, b) {
+            // Gaussian elimination for 3x3
+            const aug = M.map((row, i) => [...row, b[i]]);
+            for (let col = 0; col < 3; col++) {
+                let maxR = col;
+                for (let r = col+1; r < 3; r++) {
+                    if (Math.abs(aug[r][col]) > Math.abs(aug[maxR][col])) maxR = r;
+                }
+                [aug[col], aug[maxR]] = [aug[maxR], aug[col]];
+                const piv = aug[col][col];
+                if (Math.abs(piv) < 1e-12) continue;
+                for (let j = col; j <= 3; j++) aug[col][j] /= piv;
+                for (let r = 0; r < 3; r++) {
+                    if (r === col) continue;
+                    const f = aug[r][col];
+                    for (let j = col; j <= 3; j++) aug[r][j] -= f * aug[col][j];
+                }
+            }
+            return [aug[0][3], aug[1][3], aug[2][3]];
+        }
+
+        // --- Exit overlay ---
+        $('#cmp-exit-overlay').addEventListener('click', async () => {
+            compareCanvas.style.display = 'none';
+            compareMode = false;
+            compareStep = 'base';
+            baseRegPts = [];
+            newRegPts = [];
+            newPdf = null;
+            $('#compare-modal').style.display = 'none';
+            cmpSvg.innerHTML = '';
+            // Re-render the original page
+            await renderPage(currentPage);
+            setStatus('Overlay cleared.');
+        });
+
+        $('#compare-close').addEventListener('click', () => { $('#cmp-cancel').click(); });
+        $('#cmp-cancel').addEventListener('click', async () => {
+            compareMode = false;
+            compareStep = 'base';
+            baseRegPts = [];
+            newRegPts = [];
+            $('#compare-modal').style.display = 'none';
+            viewer.classList.remove('crosshair');
+            cmpSvg.innerHTML = '';
+            // Restore base page if we were viewing the new PDF
+            if (newPdf && baseImageData) {
+                pdfCanvas.width = basePgWidth;
+                pdfCanvas.height = basePgHeight;
+                ctx.putImageData(baseImageData, 0, 0);
+                // Restore page dimensions
+                const page = await pdf.getPage(currentPage);
+                const nv = page.getViewport({ scale: 1 });
+                pdfPageWidth = nv.width;
+                pdfPageHeight = nv.height;
+                fitToScreen();
+            }
+            newPdf = null;
+            setStatus('Compare cancelled.');
+        });
+
+        // ═══════════════════════════════════════════
+        // ═══════════ EXPORT ═══════════════════════
+        // ═══════════════════════════════════════════
+
+        $('#btn-export').addEventListener('click', () => {
+            if (!pdf) return;
+            $('#export-modal').style.display = 'block';
+            const box = $('#export-modal-box');
+            box.style.left = Math.max(0, window.innerWidth - 380) + 'px';
+            box.style.top = '60px';
+            $('#export-status').textContent = '';
+            // Show overlay option only if overlay is active
+            const overlayOpt = $('#export-range').querySelector('[value="overlay"]');
+            overlayOpt.style.display = compareCanvas.style.display === 'block' ? '' : 'none';
+        });
+
+        makeDraggable($('#export-drag-handle'), $('#export-modal-box'));
+
+        $('#export-range').addEventListener('change', () => {
+            $('#export-custom-row').style.display =
+                $('#export-range').value === 'custom' ? '' : 'none';
+        });
+
+        $('#export-close').addEventListener('click', () => { $('#export-cancel').click(); });
+        $('#export-cancel').addEventListener('click', () => {
+            $('#export-modal').style.display = 'none';
+        });
+
+        $('#export-go').addEventListener('click', async () => {
+            const rangeType = $('#export-range').value;
+
+            if (rangeType === 'overlay') {
+                exportOverlay();
+                return;
+            }
+
+            const pages = parsePageRange(rangeType);
+            if (!pages || pages.length === 0) {
+                $('#export-status').textContent = 'Invalid page range.';
+                return;
+            }
+
+            $('#export-status').textContent = `Exporting ${pages.length} page(s)...`;
+
+            for (const pg of pages) {
+                await exportPage(pg);
+            }
+
+            $('#export-status').textContent = `Done! ${pages.length} page(s) exported.`;
+        });
+
+        function parsePageRange(rangeType) {
+            if (rangeType === 'current') return [currentPage];
+            if (rangeType === 'all') {
+                const arr = [];
+                for (let i = 1; i <= totalPages; i++) arr.push(i);
+                return arr;
+            }
+            if (rangeType === 'custom') {
+                const input = $('#export-pages').value.trim();
+                if (!input) return null;
+                const pages = new Set();
+                for (const part of input.split(',')) {
+                    const trimmed = part.trim();
+                    const rangeMatch = trimmed.match(/^(\d+)\s*-\s*(\d+)$/);
+                    if (rangeMatch) {
+                        const start = parseInt(rangeMatch[1]);
+                        const end = parseInt(rangeMatch[2]);
+                        for (let i = start; i <= Math.min(end, totalPages); i++) pages.add(i);
+                    } else {
+                        const n = parseInt(trimmed);
+                        if (n >= 1 && n <= totalPages) pages.add(n);
+                    }
+                }
+                return [...pages].sort((a, b) => a - b);
+            }
+            return null;
+        }
+
+        // Save canvas as file using File System Access API (Save As dialog)
+        // Falls back to download if browser doesn't support it
+        async function saveCanvasToFile(canvas, defaultName) {
+            try {
+                if (window.showSaveFilePicker) {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: defaultName,
+                        types: [{
+                            description: 'PNG Image',
+                            accept: { 'image/png': ['.png'] }
+                        }]
+                    });
+                    const writable = await handle.createWritable();
+                    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+                    await writable.write(blob);
+                    await writable.close();
+                } else {
+                    // Fallback for browsers without File System Access API
+                    const link = document.createElement('a');
+                    link.download = defaultName;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                }
+            } catch (e) {
+                if (e.name !== 'AbortError') console.warn('Save failed:', e);
+            }
+        }
+
+        async function exportPage(pageNum) {
+            // Render the page fresh
+            const page = await pdf.getPage(pageNum);
+            const vp = page.getViewport({ scale: RENDER_SCALE });
+
+            const expCanvas = document.createElement('canvas');
+            expCanvas.width = vp.width;
+            expCanvas.height = vp.height;
+            const expCtx = expCanvas.getContext('2d');
+
+            await page.render({ canvasContext: expCtx, viewport: vp }).promise;
+
+            // Draw measurements for this page on top
+            if (pageNum === currentPage) {
+                drawAnnotationsToCanvas(expCtx, vp.width, vp.height);
+            }
+
+            // Save to file
+            await saveCanvasToFile(expCanvas, `page-${pageNum}.png`);
+        }
+
+        function drawAnnotationsToCanvas(expCtx, w, h) {
+            const s = RENDER_SCALE;
+            expCtx.save();
+            expCtx.scale(s, s);
+            expCtx.lineCap = 'round';
+            expCtx.lineJoin = 'round';
+
+            // --- Helper to draw text with outline ---
+            function drawLabel(text, x, y, fillColor, fontSize) {
+                expCtx.font = `bold ${fontSize}px -apple-system, sans-serif`;
+                expCtx.textAlign = 'center';
+                expCtx.strokeStyle = 'rgba(0,0,0,0.85)';
+                expCtx.lineWidth = fontSize * 0.3;
+                expCtx.strokeText(text, x, y);
+                expCtx.fillStyle = fillColor;
+                expCtx.fillText(text, x, y);
+            }
+
+            // --- Measurements ---
+            for (const m of measurements) {
+                if (m.type === 'polyline') {
+                    expCtx.strokeStyle = '#FF3333';
+                    expCtx.lineWidth = 2;
+                    expCtx.setLineDash([6, 4]);
+                    let cumDist = 0;
+                    for (let i = 0; i < m.points.length - 1; i++) {
+                        const p1 = m.points[i], p2 = m.points[i+1];
+                        expCtx.beginPath();
+                        expCtx.moveTo(p1.x, p1.y);
+                        expCtx.lineTo(p2.x, p2.y);
+                        expCtx.stroke();
+                        // Segment label
+                        if (scalePtPerUnit) {
+                            const segDist = ptsDist(p1, p2) / scalePtPerUnit;
+                            cumDist += segDist;
+                            const mx = (p1.x + p2.x) / 2;
+                            const my = (p1.y + p2.y) / 2;
+                            drawLabel(formatDist(segDist, scaleUnit), mx, my - 6, '#FFD700', 11);
+                            if (m.points.length > 2 && i < m.points.length - 2) {
+                                drawLabel(formatDist(cumDist, scaleUnit), p2.x, p2.y - 14, '#00DDFF', 10);
+                            }
+                        }
+                    }
+                    expCtx.setLineDash([]);
+                    // Dots
+                    for (const p of m.points) {
+                        expCtx.fillStyle = '#FF3333';
+                        expCtx.beginPath();
+                        expCtx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                        expCtx.fill();
+                    }
+                    // Total
+                    if (m.label && m.points.length >= 2) {
+                        const last = m.points[m.points.length - 1];
+                        drawLabel('Total: ' + m.label, last.x, last.y - 20, '#FFD700', 14);
+                    }
+                } else {
+                    // Line measurement
+                    expCtx.strokeStyle = '#FF3333';
+                    expCtx.lineWidth = 2;
+                    expCtx.setLineDash([6, 4]);
+                    expCtx.beginPath();
+                    expCtx.moveTo(m.x1, m.y1);
+                    expCtx.lineTo(m.x2, m.y2);
+                    expCtx.stroke();
+                    expCtx.setLineDash([]);
+                    // Dots
+                    expCtx.fillStyle = '#FF3333';
+                    for (const p of [{x:m.x1,y:m.y1},{x:m.x2,y:m.y2}]) {
+                        expCtx.beginPath();
+                        expCtx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                        expCtx.fill();
+                    }
+                    // Label
+                    const mx = (m.x1 + m.x2) / 2;
+                    const my = (m.y1 + m.y2) / 2;
+                    drawLabel(m.label, mx, my - 8, '#FFD700', 14);
+                }
+            }
+
+            // --- Utility lines ---
+            for (const u of utilityLines) {
+                const color = u.color;
+                const typeLabel = UTIL_LABELS[u.utilType];
+                let cumDist = 0;
+
+                expCtx.strokeStyle = color;
+                expCtx.lineWidth = 4;
+                expCtx.setLineDash([]);
+
+                for (let i = 0; i < u.points.length - 1; i++) {
+                    const p1 = u.points[i], p2 = u.points[i+1];
+                    expCtx.beginPath();
+                    expCtx.moveTo(p1.x, p1.y);
+                    expCtx.lineTo(p2.x, p2.y);
+                    expCtx.stroke();
+
+                    const mx = (p1.x + p2.x) / 2;
+                    const my = (p1.y + p2.y) / 2;
+
+                    // Segment distance
+                    if (scalePtPerUnit) {
+                        const segDist = ptsDist(p1, p2) / scalePtPerUnit;
+                        cumDist += segDist;
+                        drawLabel(formatDist(segDist, scaleUnit), mx, my - 8, '#fff', 11);
+                    }
+
+                    // Type label on every other segment
+                    if (i % 2 === 0) {
+                        drawLabel(typeLabel, mx, my + 14, color, 13);
+                    }
+                }
+
+                // Dots
+                for (const p of u.points) {
+                    expCtx.fillStyle = color;
+                    expCtx.beginPath();
+                    expCtx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                    expCtx.fill();
+                    expCtx.strokeStyle = '#fff';
+                    expCtx.lineWidth = 1;
+                    expCtx.stroke();
+                }
+
+                // Total at end
+                if (scalePtPerUnit && u.points.length >= 2) {
+                    const last = u.points[u.points.length - 1];
+                    const typeName = u.utilType.charAt(0).toUpperCase() + u.utilType.slice(1);
+                    drawLabel(`${typeName}: ${u.label}`, last.x, last.y - 20, color, 14);
+                }
+            }
+
+            expCtx.restore();
+        }
+
+        async function exportOverlay() {
+            if (compareCanvas.style.display !== 'block') return;
+            await saveCanvasToFile(compareCanvas, 'overlay.png');
+            $('#export-status').textContent = 'Overlay exported!';
+        }
+
+        // ── Sidebar drag-and-drop reorder ──
+        (function initSidebarDrag() {
+            const sidebar = document.getElementById('sidebar');
+            const STORAGE_KEY = 'sidebar-order';
+            let dragWrap = null;
+            let ghost = null;
+            let isDragging = false;
+            let offsetY = 0;
+
+            // Wrap each .side-btn in a .side-btn-wrap div (skip fixed buttons)
+            [...sidebar.querySelectorAll('.side-btn')].forEach(btn => {
+                if (btn.dataset.fixed === 'true') return; // don't wrap fixed buttons
+                const wrap = document.createElement('div');
+                wrap.className = 'side-btn-wrap';
+                wrap.dataset.btnId = btn.id;
+                btn.before(wrap);
+                wrap.appendChild(btn);
+            });
+
+            // Click forwarding not needed — buttons have pointer-events:auto now
+
+            function getWraps() { return [...sidebar.querySelectorAll('.side-btn-wrap')]; }
+
+            function restoreOrder() {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (!saved) return;
+                try {
+                    const ids = JSON.parse(saved);
+                    const map = {};
+                    getWraps().forEach(w => { map[w.dataset.btnId] = w; });
+                    sidebar.querySelectorAll('.side-sep').forEach(s => s.remove());
+                    ids.forEach(id => { if (map[id]) sidebar.appendChild(map[id]); });
+                    getWraps().forEach(w => { if (!ids.includes(w.dataset.btnId)) sidebar.appendChild(w); });
+                } catch(e) {}
+            }
+
+            function saveOrder() {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(getWraps().map(w => w.dataset.btnId)));
+            }
+
+            function clearHighlights() {
+                getWraps().forEach(w => w.classList.remove('drag-over-top', 'drag-over-bottom'));
+            }
+
+            function startDrag(wrap, clientY) {
+                isDragging = true;
+                dragWrap = wrap;
+                wrap.classList.add('dragging');
+                const r = wrap.getBoundingClientRect();
+                offsetY = clientY - r.top;
+                ghost = wrap.cloneNode(true);
+                ghost.classList.remove('dragging');
+                ghost.style.cssText = `position:fixed; left:${r.left}px; top:${r.top}px; width:${r.width}px; opacity:0.9; z-index:9999; pointer-events:none;`;
+                document.body.appendChild(ghost);
+            }
+
+            function moveDrag(clientX, clientY) {
+                if (!isDragging || !ghost) return;
+                ghost.style.top = (clientY - offsetY) + 'px';
+                clearHighlights();
+                ghost.style.display = 'none';
+                const el = document.elementFromPoint(clientX, clientY);
+                ghost.style.display = '';
+                const targetWrap = el?.closest('.side-btn-wrap');
+                if (targetWrap && targetWrap !== dragWrap) {
+                    const r = targetWrap.getBoundingClientRect();
+                    if (clientY < r.top + r.height / 2) {
+                        targetWrap.classList.add('drag-over-top');
+                    } else {
+                        targetWrap.classList.add('drag-over-bottom');
+                    }
+                }
+            }
+
+            function endDrag() {
+                if (!isDragging) return;
+                const topT = sidebar.querySelector('.side-btn-wrap.drag-over-top');
+                const botT = sidebar.querySelector('.side-btn-wrap.drag-over-bottom');
+                if (topT && dragWrap !== topT) { topT.before(dragWrap); saveOrder(); }
+                else if (botT && dragWrap !== botT) { botT.after(dragWrap); saveOrder(); }
+                clearHighlights();
+                getWraps().forEach(w => w.classList.remove('dragging'));
+                if (ghost) { ghost.remove(); ghost = null; }
+                dragWrap = null;
+                // Delay resetting isDragging so the click forwarder skips this cycle
+                setTimeout(() => { isDragging = false; }, 100);
+            }
+
+            // Mouse: start drag only after 5px movement
+            sidebar.addEventListener('mousedown', e => {
+                const wrap = e.target.closest('.side-btn-wrap');
+                if (!wrap) return;
+                const sy = e.clientY, sx = e.clientX;
+                let pending = true;
+                const onMove = ev => {
+                    if (pending && (Math.abs(ev.clientY - sy) > 5 || Math.abs(ev.clientX - sx) > 5)) {
+                        pending = false;
+                        startDrag(wrap, sy);
+                    }
+                    if (!pending) moveDrag(ev.clientX, ev.clientY);
+                };
+                const onUp = ev => {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    if (!pending) {
+                        endDrag();
+                    }
+                    // If not dragged, native click fires on its own
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+
+            // Touch: start drag after 8px vertical movement
+            sidebar.addEventListener('touchstart', e => {
+                const wrap = e.target.closest('.side-btn-wrap');
+                if (!wrap) return;
+                const t = e.touches[0];
+                const sy = t.clientY;
+                let started = false;
+                const onMove = ev => {
+                    const tt = ev.touches[0];
+                    if (!started && Math.abs(tt.clientY - sy) > 8) {
+                        started = true;
+                        startDrag(wrap, sy);
+                    }
+                    if (started) {
+                        ev.preventDefault();
+                        moveDrag(tt.clientX, tt.clientY);
+                    }
+                };
+                const onEnd = () => {
+                    document.removeEventListener('touchmove', onMove);
+                    document.removeEventListener('touchend', onEnd);
+                    if (started) endDrag();
+                };
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onEnd);
+            }, { passive: true });
+
+            restoreOrder();
+        })();
+
+        } catch(e) {
+            document.getElementById('status').textContent = 'Init error: ' + e.message;
+            document.getElementById('status').style.color = '#f44';
+            console.error(e);
+        }
+    </script>
+</body>
+</html>
