@@ -1031,7 +1031,10 @@
                 utilityLines: [...utilityLines],
                 countPoints: [...countPoints],
                 areas: [...areas],
-                volumes: [...volumes]
+                volumes: [...volumes],
+                scalePtPerUnit,
+                scaleUnit,
+                scaleDisplayLabel
             };
         }
         function loadPageData(pageNum) {
@@ -1042,12 +1045,32 @@
                 countPoints = data.countPoints ? [...data.countPoints] : [];
                 areas = data.areas ? [...data.areas] : [];
                 volumes = data.volumes ? [...data.volumes] : [];
+                // Restore per-page scale
+                scalePtPerUnit = data.scalePtPerUnit || null;
+                scaleUnit = data.scaleUnit || 'ft';
+                scaleDisplayLabel = data.scaleDisplayLabel || '';
             } else {
                 measurements = [];
                 utilityLines = [];
                 countPoints = [];
                 areas = [];
                 volumes = [];
+                scalePtPerUnit = null;
+                scaleUnit = 'ft';
+                scaleDisplayLabel = '';
+            }
+            // Update scale display and button states
+            updateScaleDisplay();
+            if (scalePtPerUnit) {
+                sideEnable('#btn-measure');
+                sideEnable('#btn-polyline');
+                sideEnable('#btn-area');
+                sideEnable('#btn-volume');
+            } else {
+                sideDisable('#btn-measure');
+                sideDisable('#btn-polyline');
+                sideDisable('#btn-area');
+                sideDisable('#btn-volume');
             }
             // Reset in-progress drawing state when switching pages
             tapPoint = null;
@@ -3229,21 +3252,24 @@
         // ── Unit System Dropdown ──
         $('#unit-system').addEventListener('change', e => {
             unitSystem = e.target.value;
-            // Also recalc labels for all pages in pageAnnotations
+            // Recalc labels for current page
             recalcAllLabels();
-            // Recalc other pages too
+            // Recalc other pages using their own per-page scale
             const curPage = currentPage;
             for (const [pg, data] of Object.entries(pageAnnotations)) {
                 if (parseInt(pg) === curPage) continue;
+                const pgScale = data.scalePtPerUnit;
+                const pgUnit = data.scaleUnit || 'ft';
+                if (!pgScale) continue;
                 if (data.measurements) {
                     for (const m of data.measurements) {
                         if (m.type === 'polyline') {
                             let total = 0;
                             for (let i = 1; i < m.points.length; i++) total += ptsDist(m.points[i - 1], m.points[i]);
-                            m.label = formatDist(total / scalePtPerUnit, scaleUnit);
+                            m.label = formatDist(total / pgScale, pgUnit);
                         } else {
                             const dist = ptsDist({ x: m.x1, y: m.y1 }, { x: m.x2, y: m.y2 });
-                            m.label = formatDist(dist / scalePtPerUnit, scaleUnit);
+                            m.label = formatDist(dist / pgScale, pgUnit);
                         }
                     }
                 }
@@ -3251,7 +3277,7 @@
                     for (const u of data.utilityLines) {
                         let total = 0;
                         for (let i = 1; i < u.points.length; i++) total += ptsDist(u.points[i - 1], u.points[i]);
-                        u.label = formatDist(total / scalePtPerUnit, scaleUnit);
+                        u.label = formatDist(total / pgScale, pgUnit);
                     }
                 }
                 if (data.areas) {
@@ -3504,9 +3530,13 @@
             countPoints = [];
             areas = [];
             volumes = [];
-            // Clear all pages' annotations but keep scale
+            // Clear all pages' linework but keep scale
             for (const pg of Object.keys(pageAnnotations)) {
-                pageAnnotations[pg] = { measurements: [], utilityLines: [], countPoints: [], areas: [], volumes: [] };
+                const d = pageAnnotations[pg];
+                pageAnnotations[pg] = {
+                    measurements: [], utilityLines: [], countPoints: [], areas: [], volumes: [],
+                    scalePtPerUnit: d.scalePtPerUnit, scaleUnit: d.scaleUnit, scaleDisplayLabel: d.scaleDisplayLabel
+                };
             }
             polyPoints = [];
             utilPolyPts = [];
