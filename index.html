@@ -773,21 +773,7 @@
                 <h3>Area Result</h3>
                 <button class="modal-close" id="area-close">&times;</button>
             </div>
-            <div id="area-result" style="padding:4px 0; font-size:14px; color:#ccc;"></div>
-            <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
-                <p style="color:#ccc; font-size:13px; margin-bottom:6px;">Enter depth for cubic yards (optional):</p>
-                <div class="modal-row">
-                    <input type="number" id="area-depth" placeholder="0" step="any" min="0" inputmode="decimal"
-                        style="flex:1; padding:8px; background:#1a1a1a; color:#fff; border:1px solid #555; border-radius:4px; font-size:14px;">
-                    <select id="area-depth-unit" style="padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:14px;">
-                        <option value="ft">feet</option>
-                        <option value="in">inches</option>
-                        <option value="m">meters</option>
-                        <option value="cm">centimeters</option>
-                    </select>
-                </div>
-                <div id="area-cuyd-result" style="padding:6px 0; font-size:14px; color:#FFD700; font-weight:600;"></div>
-            </div>
+            <div id="area-result" style="padding:8px 0; font-size:14px; color:#ccc;"></div>
             <div class="modal-row" style="margin-top:10px; margin-bottom:0;">
                 <button id="area-ok" class="active" style="flex:1;">OK</button>
             </div>
@@ -920,11 +906,12 @@
 
     <!-- Confirm Clear modal -->
     <div id="confirm-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
-        <div style="background:#333; border:1px solid #555; border-radius:10px; padding:20px; max-width:300px; text-align:center;">
-            <p style="margin-bottom:16px; font-size:15px; color:#fff;">Clear all measurements, counts, areas, utilities, and scale?</p>
-            <div style="display:flex; gap:10px;">
-                <button id="confirm-cancel" style="flex:1; padding:12px; font-size:15px; background:#555; border:1px solid #666; border-radius:6px; color:#fff;">Cancel</button>
-                <button id="confirm-ok" style="flex:1; padding:12px; font-size:15px; background:#c33; border:1px solid #a22; border-radius:6px; color:#fff; font-weight:600;">Clear All</button>
+        <div style="background:#333; border:1px solid #555; border-radius:10px; padding:20px; max-width:320px; text-align:center;">
+            <p style="margin-bottom:16px; font-size:15px; color:#fff;">What do you want to clear?</p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button id="confirm-linework" style="padding:14px; font-size:15px; background:#c63; border:1px solid #a52; border-radius:6px; color:#fff; font-weight:600;">Clear Linework (keep scale)</button>
+                <button id="confirm-ok" style="padding:14px; font-size:15px; background:#c33; border:1px solid #a22; border-radius:6px; color:#fff; font-weight:600;">Clear Everything</button>
+                <button id="confirm-cancel" style="padding:12px; font-size:15px; background:#555; border:1px solid #666; border-radius:6px; color:#fff;">Cancel</button>
             </div>
         </div>
     </div>
@@ -1021,6 +1008,7 @@
 
         // Snap-to-vector: extracted endpoints from PDF paths
         let snapPoints = [];      // [{x, y}] in PDF pts
+        let snapSegments = [];    // [{p1:{x,y}, p2:{x,y}}] for snap-to-line
         const SNAP_RADIUS_PX = 12; // screen pixels to snap within
         let showSnapPoints = false; // debug: render snap dots on plan
 
@@ -1351,15 +1339,27 @@
                 }
             }
 
+            snapSegments = segments;
             console.log(`Snap: ${snapPoints.length} points from ${segments.length} segments`);
         }
 
-        // Find nearest snap point within radius (in screen pixels)
+        // Nearest point on a line segment (perpendicular projection clamped to segment)
+        function nearestPointOnSeg(pt, p1, p2) {
+            const dx = p2.x - p1.x, dy = p2.y - p1.y;
+            const lenSq = dx * dx + dy * dy;
+            if (lenSq < 0.001) return { x: p1.x, y: p1.y }; // degenerate segment
+            const t = Math.max(0, Math.min(1, ((pt.x - p1.x) * dx + (pt.y - p1.y) * dy) / lenSq));
+            return { x: p1.x + t * dx, y: p1.y + t * dy };
+        }
+
+        // Find nearest snap: endpoints/intersections first (priority), then nearest point on any line
         function snapTo(rawPt) {
-            if (snapPoints.length === 0 || mode === 'none') return rawPt;
+            if (mode === 'none') return rawPt;
             const radiusPts = SNAP_RADIUS_PX * ptsPerScreenPx();
             let best = null;
             let bestDist = radiusPts;
+
+            // Priority 1: snap to endpoints and intersections
             for (const sp of snapPoints) {
                 const d = Math.hypot(sp.x - rawPt.x, sp.y - rawPt.y);
                 if (d < bestDist) {
@@ -1367,7 +1367,23 @@
                     best = sp;
                 }
             }
-            return best ? { x: best.x, y: best.y, snapped: true } : rawPt;
+            // If we snapped to an endpoint, use it (higher priority)
+            if (best) return { x: best.x, y: best.y, snapped: true };
+
+            // Priority 2: snap to nearest point on any line segment
+            let lineBest = null;
+            let lineBestDist = radiusPts;
+            for (const seg of snapSegments) {
+                const np = nearestPointOnSeg(rawPt, seg.p1, seg.p2);
+                const d = Math.hypot(np.x - rawPt.x, np.y - rawPt.y);
+                if (d < lineBestDist) {
+                    lineBestDist = d;
+                    lineBest = np;
+                }
+            }
+            if (lineBest) return { x: lineBest.x, y: lineBest.y, snapped: true };
+
+            return rawPt;
         }
 
         function fitToScreen() {
@@ -1701,11 +1717,12 @@
             }
         });
 
-        // ── Right-click context menu for utility points ──
+        // ── Right-click context menu for all linework points ──
         const ctxMenu = $('#ctx-menu');
         const ctxAddBtn = $('#ctx-add-point');
         const ctxRemoveBtn = $('#ctx-remove-point');
-        let ctxTarget = null; // { type: 'point'|'segment', utilIdx, polyIdx?, segIdx?, insertAt?, pt }
+        // ctxTarget: { action:'point'|'segment', source:'util'|'meas'|'area'|'vol', idx, polyIdx?, insertAt?, pt, minPts }
+        let ctxTarget = null;
         let suppressNextTap = false;
 
         function hideCtxMenu() {
@@ -1719,65 +1736,162 @@
             if (!ctxMenu.contains(e.target)) hideCtxMenu();
         });
 
-        viewer.addEventListener('contextmenu', e => {
-            e.preventDefault();
-            const clickPt = screenToPdfPts(e.clientX, e.clientY);
+        // Get all annotated polyline-like objects for context menu hit testing
+        function getAllLinework() {
+            const items = [];
+            for (let i = 0; i < utilityLines.length; i++) {
+                items.push({ source: 'util', idx: i, points: utilityLines[i].points, minPts: 2 });
+            }
+            for (let i = 0; i < measurements.length; i++) {
+                const m = measurements[i];
+                if (m.type === 'polyline') {
+                    items.push({ source: 'meas', idx: i, points: m.points, minPts: 2 });
+                }
+            }
+            for (let i = 0; i < areas.length; i++) {
+                items.push({ source: 'area', idx: i, points: areas[i].points, minPts: 3 });
+            }
+            for (let i = 0; i < volumes.length; i++) {
+                items.push({ source: 'vol', idx: i, points: volumes[i].points, minPts: 3 });
+            }
+            return items;
+        }
 
-            // Check if right-clicking on a utility vertex
+        function showCtxAt(x, y) {
+            ctxMenu.style.left = Math.min(x, window.innerWidth - 180) + 'px';
+            ctxMenu.style.top = Math.min(y, window.innerHeight - 80) + 'px';
+            ctxMenu.style.display = 'block';
+        }
+
+        function ctxHitTest(clickPt, clientX, clientY) {
             const hitRadius = 10 * ptsPerScreenPx();
-            for (let i = utilityLines.length - 1; i >= 0; i--) {
-                const u = utilityLines[i];
-                for (let j = 0; j < u.points.length; j++) {
-                    if (ptsDist(clickPt, u.points[j]) < hitRadius) {
-                        ctxTarget = { type: 'point', utilIdx: i, polyIdx: j, pt: clickPt };
+            const items = getAllLinework();
+
+            // Check vertices first
+            for (const item of items) {
+                for (let j = 0; j < item.points.length; j++) {
+                    if (ptsDist(clickPt, item.points[j]) < hitRadius) {
+                        ctxTarget = { action: 'point', source: item.source, idx: item.idx, polyIdx: j, pt: clickPt, minPts: item.minPts };
                         ctxAddBtn.style.display = 'none';
-                        ctxRemoveBtn.style.display = u.points.length > 2 ? 'block' : 'none';
-                        if (u.points.length <= 2) { hideCtxMenu(); return; }
-                        ctxMenu.style.left = e.clientX + 'px';
-                        ctxMenu.style.top = e.clientY + 'px';
-                        ctxMenu.style.display = 'block';
-                        return;
+                        ctxRemoveBtn.style.display = item.points.length > item.minPts ? 'block' : 'none';
+                        if (item.points.length <= item.minPts) { hideCtxMenu(); return true; }
+                        showCtxAt(clientX, clientY);
+                        return true;
                     }
                 }
             }
 
-            // Check if right-clicking on a utility line segment
-            const segHit = hitTestUtilitySegment(clickPt);
-            if (segHit) {
-                ctxTarget = { type: 'segment', utilIdx: segHit.utilIdx, segIdx: segHit.segIdx, insertAt: segHit.insertAt, pt: segHit.projPt };
-                ctxAddBtn.style.display = 'block';
-                ctxRemoveBtn.style.display = 'none';
-                ctxMenu.style.left = e.clientX + 'px';
-                ctxMenu.style.top = e.clientY + 'px';
-                ctxMenu.style.display = 'block';
-                return;
+            // Check segments
+            for (const item of items) {
+                for (let j = 0; j < item.points.length - 1; j++) {
+                    const a = item.points[j], b = item.points[j + 1];
+                    const dx = b.x - a.x, dy = b.y - a.y;
+                    const lenSq = dx * dx + dy * dy;
+                    if (lenSq === 0) continue;
+                    let t = ((clickPt.x - a.x) * dx + (clickPt.y - a.y) * dy) / lenSq;
+                    t = Math.max(0, Math.min(1, t));
+                    const proj = { x: a.x + t * dx, y: a.y + t * dy };
+                    if (ptsDist(clickPt, proj) < hitRadius) {
+                        ctxTarget = { action: 'segment', source: item.source, idx: item.idx, insertAt: j + 1, pt: proj, minPts: item.minPts };
+                        ctxAddBtn.style.display = 'block';
+                        ctxRemoveBtn.style.display = 'none';
+                        showCtxAt(clientX, clientY);
+                        return true;
+                    }
+                }
+                // For closed polygons (area/vol), also check closing segment
+                if (item.source === 'area' || item.source === 'vol') {
+                    const a = item.points[item.points.length - 1], b = item.points[0];
+                    const dx = b.x - a.x, dy = b.y - a.y;
+                    const lenSq = dx * dx + dy * dy;
+                    if (lenSq > 0) {
+                        let t = ((clickPt.x - a.x) * dx + (clickPt.y - a.y) * dy) / lenSq;
+                        t = Math.max(0, Math.min(1, t));
+                        const proj = { x: a.x + t * dx, y: a.y + t * dy };
+                        if (ptsDist(clickPt, proj) < hitRadius) {
+                            ctxTarget = { action: 'segment', source: item.source, idx: item.idx, insertAt: item.points.length, pt: proj, minPts: item.minPts };
+                            ctxAddBtn.style.display = 'block';
+                            ctxRemoveBtn.style.display = 'none';
+                            showCtxAt(clientX, clientY);
+                            return true;
+                        }
+                    }
+                }
             }
+            return false;
+        }
 
-            hideCtxMenu();
+        viewer.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            const clickPt = screenToPdfPts(e.clientX, e.clientY);
+            if (!ctxHitTest(clickPt, e.clientX, e.clientY)) hideCtxMenu();
         });
+
+        function getCtxPointsArray() {
+            if (!ctxTarget) return null;
+            const { source, idx } = ctxTarget;
+            if (source === 'util') return utilityLines[idx].points;
+            if (source === 'meas') return measurements[idx].points;
+            if (source === 'area') return areas[idx].points;
+            if (source === 'vol') return volumes[idx].points;
+            return null;
+        }
+
+        function recalcCtxTarget() {
+            const { source, idx } = ctxTarget;
+            if (source === 'util') { recalcUtility(idx); updateUtilityList(); }
+            else if (source === 'meas') {
+                // Recalc polyline measurement label
+                const m = measurements[idx];
+                if (scalePtPerUnit && m.points) {
+                    let total = 0;
+                    for (let i = 1; i < m.points.length; i++) total += ptsDist(m.points[i - 1], m.points[i]);
+                    m.label = formatDist(total / scalePtPerUnit, scaleUnit);
+                }
+                updateMeasurementsList();
+            }
+            else if (source === 'area') {
+                const a = areas[idx];
+                const areaPts2 = polygonAreaPts2(a.points);
+                const sqUnits = areaPts2 / (scalePtPerUnit * scalePtPerUnit);
+                const toFt = UNIT_TO_FT[scaleUnit] || 1;
+                a.sqft = sqUnits * (toFt * toFt);
+                a.sqyd = a.sqft / 9;
+                a.label = formatAreaVal(a.sqft);
+                updateAreaList();
+            }
+            else if (source === 'vol') {
+                const v = volumes[idx];
+                const areaPts2 = polygonAreaPts2(v.points);
+                const sqUnits = areaPts2 / (scalePtPerUnit * scalePtPerUnit);
+                const toFt = UNIT_TO_FT[scaleUnit] || 1;
+                v.sqft = sqUnits * (toFt * toFt);
+                if (v.depth > 0) { v.cuyd = (v.sqft * v.depth) / 27; v.label = formatVolumeVal(v.cuyd); }
+                updateVolumeList();
+            }
+        }
 
         ctxAddBtn.addEventListener('click', e => {
             e.stopPropagation();
-            if (!ctxTarget || ctxTarget.type !== 'segment') return;
-            const u = utilityLines[ctxTarget.utilIdx];
-            u.points.splice(ctxTarget.insertAt, 0, { x: ctxTarget.pt.x, y: ctxTarget.pt.y });
-            recalcUtility(ctxTarget.utilIdx);
+            if (!ctxTarget || ctxTarget.action !== 'segment') return;
+            const pts = getCtxPointsArray();
+            if (!pts) return;
+            pts.splice(ctxTarget.insertAt, 0, { x: ctxTarget.pt.x, y: ctxTarget.pt.y });
+            recalcCtxTarget();
             savePageData();
             rebuildSVG();
-            updateUtilityList();
             hideCtxMenu();
         });
 
         ctxRemoveBtn.addEventListener('click', e => {
             e.stopPropagation();
-            if (!ctxTarget || ctxTarget.type !== 'point') return;
-            const u = utilityLines[ctxTarget.utilIdx];
-            if (u.points.length <= 2) return; // need at least 2 points
-            u.points.splice(ctxTarget.polyIdx, 1);
-            recalcUtility(ctxTarget.utilIdx);
+            if (!ctxTarget || ctxTarget.action !== 'point') return;
+            const pts = getCtxPointsArray();
+            if (!pts || pts.length <= ctxTarget.minPts) return;
+            pts.splice(ctxTarget.polyIdx, 1);
+            recalcCtxTarget();
             savePageData();
             rebuildSVG();
-            updateUtilityList();
             hideCtxMenu();
         });
 
@@ -1791,38 +1905,8 @@
             const t = e.touches[0];
             longPressPt = { clientX: t.clientX, clientY: t.clientY };
             longPressTimer = setTimeout(() => {
-                // Simulate right-click context menu
                 const clickPt = screenToPdfPts(t.clientX, t.clientY);
-                const hitRadius = 10 * ptsPerScreenPx();
-
-                // Check vertex
-                for (let i = utilityLines.length - 1; i >= 0; i--) {
-                    const u = utilityLines[i];
-                    for (let j = 0; j < u.points.length; j++) {
-                        if (ptsDist(clickPt, u.points[j]) < hitRadius) {
-                            ctxTarget = { type: 'point', utilIdx: i, polyIdx: j, pt: clickPt };
-                            ctxAddBtn.style.display = 'none';
-                            ctxRemoveBtn.style.display = u.points.length > 2 ? 'block' : 'none';
-                            if (u.points.length <= 2) return;
-                            ctxMenu.style.left = Math.min(t.clientX, window.innerWidth - 180) + 'px';
-                            ctxMenu.style.top = Math.min(t.clientY, window.innerHeight - 80) + 'px';
-                            ctxMenu.style.display = 'block';
-                            // Prevent the tap from firing
-                            tapCandidate = null;
-                            return;
-                        }
-                    }
-                }
-
-                // Check segment
-                const segHit = hitTestUtilitySegment(clickPt);
-                if (segHit) {
-                    ctxTarget = { type: 'segment', utilIdx: segHit.utilIdx, segIdx: segHit.segIdx, insertAt: segHit.insertAt, pt: segHit.projPt };
-                    ctxAddBtn.style.display = 'block';
-                    ctxRemoveBtn.style.display = 'none';
-                    ctxMenu.style.left = Math.min(t.clientX, window.innerWidth - 180) + 'px';
-                    ctxMenu.style.top = Math.min(t.clientY, window.innerHeight - 80) + 'px';
-                    ctxMenu.style.display = 'block';
+                if (ctxHitTest(clickPt, t.clientX, t.clientY)) {
                     tapCandidate = null;
                 }
             }, 600);
@@ -2142,7 +2226,7 @@
             const label = formatAreaVal(sqft);
             const area = {
                 points: [...areaPoints],
-                sqft, sqyd, cuyd: 0, depth: 0,
+                sqft, sqyd,
                 label, id
             };
             areas.push(area);
@@ -2174,32 +2258,6 @@
                     `<div><strong style="color:#44DDAA;">Square Yards:</strong> <span style="color:#FFD700; font-weight:600;">${disp.secondary}</span></div>`;
             }
             $('#area-result').innerHTML = resultHTML;
-            $('#area-depth').value = '';
-            $('#area-cuyd-result').textContent = '';
-            // Default depth unit based on unit system
-            $('#area-depth-unit').value = unitSystem === 'metric' ? 'm' : 'ft';
-
-            // Depth input → calculate volume
-            const depthInput = $('#area-depth');
-            const depthUnit = $('#area-depth-unit');
-            const cuydResult = $('#area-cuyd-result');
-            const calcCuyd = () => {
-                let d = parseFloat(depthInput.value);
-                if (!d || d <= 0) { cuydResult.textContent = ''; return; }
-                // Convert depth to feet (internal standard)
-                const dFt = d * (UNIT_TO_FT[depthUnit.value] || 1);
-                const cuft = area.sqft * dFt;
-                const cuyd = cuft / 27;
-                area.depth = dFt;
-                area.cuyd = cuyd;
-                cuydResult.textContent = formatVolumeVal(cuyd);
-                // Update stored area
-                const idx = areas.findIndex(a => a.id === area.id);
-                if (idx >= 0) { areas[idx] = { ...area }; savePageData(); }
-                updateAreaList();
-            };
-            depthInput.oninput = calcCuyd;
-            depthUnit.onchange = calcCuyd;
 
             $('#area-ok').onclick = () => {
                 modal.style.display = 'none';
@@ -2524,12 +2582,6 @@
                     style="font-size:${fontSize * 1.1}px; font-weight:bold; fill:${AREA_COLOR};
                     paint-order:stroke fill; stroke:#000; stroke-width:${textStroke * 1.2}px;
                     stroke-linejoin:round;">${a.label}</text>`;
-                if (a.cuyd > 0) {
-                    html += `<text x="${cx}" y="${cy + fontSize * 1.3}" text-anchor="middle"
-                        style="font-size:${fontSize * 0.9}px; font-weight:bold; fill:#FFD700;
-                        paint-order:stroke fill; stroke:#000; stroke-width:${textStroke}px;
-                        stroke-linejoin:round;">${formatVolumeVal(a.cuyd)}</text>`;
-                }
             }
 
             // In-progress area polygon
@@ -2984,16 +3036,11 @@
             el.classList.add('show');
             let html = '';
             let totalSqft = 0;
-            let totalSqyd = 0;
-            let totalCuyd = 0;
 
             for (const a of areas) {
                 totalSqft += a.sqft;
-                totalSqyd += a.sqyd;
-                totalCuyd += a.cuyd;
                 const d = sqftToDisplay(a.sqft);
-                let detail = unitSystem === 'metric' ? d.primary : `${d.primary} / ${d.secondary}`;
-                if (a.cuyd > 0) detail += ` / ${formatVolumeVal(a.cuyd)}`;
+                const detail = unitSystem === 'metric' ? d.primary : `${d.primary} / ${d.secondary}`;
                 html += `<div class="area-item">
                     <span><span class="area-val">${detail}</span></span>
                     <button onclick="window._deleteArea(${a.id})" style="padding:4px 8px; font-size:11px; background:#633;">X</button>
@@ -3001,8 +3048,7 @@
             }
             if (areas.length > 1) {
                 const td = sqftToDisplay(totalSqft);
-                let totalDetail = unitSystem === 'metric' ? td.primary : `${td.primary} / ${td.secondary}`;
-                if (totalCuyd > 0) totalDetail += ` / ${formatVolumeVal(totalCuyd)}`;
+                const totalDetail = unitSystem === 'metric' ? td.primary : `${td.primary} / ${td.secondary}`;
                 html += `<div class="area-item area-total-row">
                     <span><strong>Total (${areas.length})</strong></span>
                     <span class="area-val">${totalDetail}</span>
@@ -3409,12 +3455,42 @@
             setStatus('Cleared. Set scale to start measuring.');
         }
 
+        function doClearLinework() {
+            measurements = [];
+            utilityLines = [];
+            countPoints = [];
+            areas = [];
+            volumes = [];
+            // Clear all pages' annotations but keep scale
+            for (const pg of Object.keys(pageAnnotations)) {
+                pageAnnotations[pg] = { measurements: [], utilityLines: [], countPoints: [], areas: [], volumes: [] };
+            }
+            polyPoints = [];
+            utilPolyPts = [];
+            areaPoints = [];
+            volPoints = [];
+            tapPoint = null;
+            cursorPt = null;
+            sideDisable('#btn-undo');
+            $('#measurements').classList.remove('show');
+            $('#utility-list').classList.remove('show');
+            $('#count-list').classList.remove('show');
+            $('#area-list').classList.remove('show');
+            $('#volume-list').classList.remove('show');
+            rebuildSVG();
+            setMode('none');
+            setStatus('Linework cleared. Scale preserved.');
+        }
+
         $('#btn-clear-all').addEventListener('click', () => {
             if (measurements.length === 0 && utilityLines.length === 0 && countPoints.length === 0 && areas.length === 0 && volumes.length === 0 && !scalePtPerUnit) return;
-            // Show confirm modal instead of native confirm() which can fail on touch devices
             $('#confirm-modal').style.display = 'flex';
         });
 
+        $('#confirm-linework').addEventListener('click', () => {
+            $('#confirm-modal').style.display = 'none';
+            doClearLinework();
+        });
         $('#confirm-ok').addEventListener('click', () => {
             $('#confirm-modal').style.display = 'none';
             doClearAll();
@@ -4170,9 +4246,6 @@
                 const cx = a.points.reduce((s, p) => s + p.x, 0) / a.points.length;
                 const cy = a.points.reduce((s, p) => s + p.y, 0) / a.points.length;
                 drawLabel(a.label, cx, cy, AREA_COLOR, 14);
-                if (a.cuyd > 0) {
-                    drawLabel(formatVolumeVal(a.cuyd), cx, cy + 16, '#FFD700', 12);
-                }
             }
 
             // --- Volume polygons ---
