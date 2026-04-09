@@ -1571,13 +1571,7 @@
                     viewer.style.cursor = 'grabbing';
                     const pt = snapTo(screenToPdfPts(e.clientX, e.clientY));
                     applyDragTarget(pt);
-                    if (dragTarget.isUtil) {
-                        recalcUtility(dragTarget.utilIdx);
-                        updateUtilityList();
-                    } else {
-                        recalcMeasurement(dragTarget.measIdx);
-                        updateMeasurementsList();
-                    }
+                    recalcDragTarget();
                     rebuildSVG();
                     return;
                 }
@@ -1618,13 +1612,7 @@
 
             // End point drag
             if (isDraggingPoint && dragTarget) {
-                if (dragTarget.isUtil) {
-                    recalcUtility(dragTarget.utilIdx);
-                    updateUtilityList();
-                } else {
-                    recalcMeasurement(dragTarget.measIdx);
-                    updateMeasurementsList();
-                }
+                recalcDragTarget();
                 savePageData();
                 isDraggingPoint = false;
                 dragTarget = null;
@@ -2406,6 +2394,22 @@
                     }
                 }
             }
+            // Check volume polygons
+            for (let i = volumes.length - 1; i >= 0; i--) {
+                for (let j = 0; j < volumes[i].points.length; j++) {
+                    if (ptsDist(pt, volumes[i].points[j]) < hitRadius) {
+                        return { volIdx: i, polyIdx: j, isVol: true };
+                    }
+                }
+            }
+            // Check area polygons
+            for (let i = areas.length - 1; i >= 0; i--) {
+                for (let j = 0; j < areas[i].points.length; j++) {
+                    if (ptsDist(pt, areas[i].points[j]) < hitRadius) {
+                        return { areaIdx: i, polyIdx: j, isArea: true };
+                    }
+                }
+            }
             for (let i = measurements.length - 1; i >= 0; i--) {
                 const m = measurements[i];
                 if (m.type === 'polyline') {
@@ -2453,6 +2457,14 @@
                 utilityLines[dragTarget.utilIdx].points[dragTarget.polyIdx] = { x: pt.x, y: pt.y };
                 return;
             }
+            if (dragTarget.isArea) {
+                areas[dragTarget.areaIdx].points[dragTarget.polyIdx] = { x: pt.x, y: pt.y };
+                return;
+            }
+            if (dragTarget.isVol) {
+                volumes[dragTarget.volIdx].points[dragTarget.polyIdx] = { x: pt.x, y: pt.y };
+                return;
+            }
             const m = measurements[dragTarget.measIdx];
             if (m.type === 'polyline') {
                 m.points[dragTarget.polyIdx] = { x: pt.x, y: pt.y };
@@ -2460,6 +2472,34 @@
                 m.x1 = pt.x; m.y1 = pt.y;
             } else {
                 m.x2 = pt.x; m.y2 = pt.y;
+            }
+        }
+
+        function recalcDragTarget() {
+            if (!dragTarget) return;
+            if (dragTarget.isUtil) {
+                recalcUtility(dragTarget.utilIdx);
+                updateUtilityList();
+            } else if (dragTarget.isArea) {
+                const a = areas[dragTarget.areaIdx];
+                const areaPts2 = polygonAreaPts2(a.points);
+                const sqUnits = areaPts2 / (scalePtPerUnit * scalePtPerUnit);
+                const toFt = UNIT_TO_FT[scaleUnit] || 1;
+                a.sqft = sqUnits * (toFt * toFt);
+                a.sqyd = a.sqft / 9;
+                a.label = formatAreaVal(a.sqft);
+                updateAreaList();
+            } else if (dragTarget.isVol) {
+                const v = volumes[dragTarget.volIdx];
+                const areaPts2 = polygonAreaPts2(v.points);
+                const sqUnits = areaPts2 / (scalePtPerUnit * scalePtPerUnit);
+                const toFt = UNIT_TO_FT[scaleUnit] || 1;
+                v.sqft = sqUnits * (toFt * toFt);
+                if (v.depth > 0) { v.cuyd = (v.sqft * v.depth) / 27; v.label = formatVolumeVal(v.cuyd); }
+                updateVolumeList();
+            } else {
+                recalcMeasurement(dragTarget.measIdx);
+                updateMeasurementsList();
             }
         }
 
