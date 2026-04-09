@@ -1463,6 +1463,9 @@
         viewer.addEventListener('pointerdown', e => {
             e.preventDefault();
 
+            // Right-click → context menu only, don't start tap/drag
+            if (e.button === 2) return;
+
             // Middle mouse button → start middle-drag pan
             if (e.button === 1) {
                 middleDrag = true;
