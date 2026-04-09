@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estimate Comparison Tool</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module"></script>
+    <script>
+        // Load PDF.js globally so our main script can use it
+        window._pdfjsReady = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs').then(mod => {
+            mod.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+            window.pdfjsLib = mod;
+            return mod;
+        });
+    </script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-gradient: linear-gradient(135deg, #6366f1, #a855f7);
+            --accent-hover: linear-gradient(135deg, #4f46e5, #9333ea);
+            --input-bg: rgba(15, 23, 42, 0.5);
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.12), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.12), transparent 25%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+
+        header {
+            width: 100%;
+            max-width: 1400px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .back-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--panel-bg);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--panel-border);
+        }
+
+        .back-link:hover { color: var(--text-main); border-color: rgba(255,255,255,0.2); }
+
+        /* Step Indicator */
+        .steps {
+            width: 100%;
+            max-width: 1400px;
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            margin-bottom: 2rem;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            position: relative;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .step-item.active { color: var(--text-main); }
+        .step-item.completed { color: var(--success-color); }
+
+        .step-num {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border: 2px solid var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .step-item.active .step-num {
+            background: var(--accent-gradient);
+            border-color: transparent;
+            color: white;
+        }
+
+        .step-item.completed .step-num {
+            background: var(--success-color);
+            border-color: transparent;
+            color: white;
+        }
+
+        .step-connector {
+            width: 60px;
+            height: 2px;
+            background: var(--panel-border);
+            align-self: center;
+        }
+
+        .step-connector.completed { background: var(--success-color); }
+
+        /* Main content */
+        .content {
+            width: 100%;
+            max-width: 1400px;
+        }
+
+        .step-content { display: none; }
+        .step-content.active { display: block; }
+
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 1rem;
+            padding: 1.75rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 1.5rem;
+        }
+
+        .panel h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Drop Zone */
+        .drop-zone {
+            border: 2px dashed rgba(99, 102, 241, 0.4);
+            border-radius: 0.75rem;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .drop-zone:hover, .drop-zone.drag-over {
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.12);
+        }
+
+        .drop-zone svg { margin-bottom: 1rem; opacity: 0.6; }
+        .drop-zone p { color: var(--text-muted); margin-top: 0.5rem; font-size: 0.875rem; }
+        .drop-zone .drop-title { color: var(--text-main); font-weight: 600; font-size: 1.1rem; margin-top: 0; }
+
+        /* File List */
+        .file-list { margin-top: 1.5rem; }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border: 1px solid var(--panel-border);
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+            background: rgba(15, 23, 42, 0.4);
+            transition: border-color 0.2s;
+        }
+
+        .file-item:hover { border-color: rgba(255,255,255,0.2); }
+
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 0.5rem;
+            background: rgba(99, 102, 241, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #6366f1;
+        }
+
+        .file-info { flex: 1; min-width: 0; }
+
+        .file-info input {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        .file-info input:hover { border-color: var(--panel-border); }
+        .file-info input:focus { outline: none; border-color: #6366f1; background: var(--input-bg); }
+
+        .file-meta { font-size: 0.8rem; color: var(--text-muted); padding-left: 0.5rem; }
+
+        .file-remove {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+        }
+
+        .file-remove:hover { color: var(--danger-color); background: rgba(239, 68, 68, 0.1); }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            background: var(--accent-gradient);
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover { background: var(--accent-hover); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4); }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-secondary {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            box-shadow: none;
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover { border-color: rgba(255,255,255,0.3); background: rgba(30,41,59,0.9); box-shadow: none; }
+
+        .btn-success {
+            background: linear-gradient(135deg, #059669, #10b981);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:hover { box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); }
+
+        .btn-row {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+
+        /* Column Mapping */
+        .vendor-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .vendor-tab {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--panel-border);
+            color: var(--text-muted);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            font-size: 0.875rem;
+        }
+
+        .vendor-tab.active {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: #6366f1;
+            color: var(--text-main);
+        }
+
+        .vendor-tab.mapped { border-color: var(--success-color); }
+        .vendor-tab.mapped::after { content: ' \2713'; color: var(--success-color); }
+
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .mapping-field label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.375rem;
+            font-weight: 500;
+        }
+
+        .mapping-field select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background: var(--input-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 0.375rem;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.85rem;
+        }
+
+        .mapping-field select:focus { outline: none; border-color: #6366f1; }
+
+        .mapping-field select option { background: var(--bg-color); }
+
+        .header-row-field {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .header-row-field label { font-size: 0.875rem; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+
+        .header-row-field input {
+            width: 80px;
+            padding: 0.5rem 0.75rem;
+            background: var(--input-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 0.375rem;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        .header-row-field input:focus { outline: none; border-color: #6366f1; }
+
+        /* Preview Table */
+        .preview-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--panel-border);
+            border-radius: 0.5rem;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .preview-table th, .preview-table td {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid rgba(255,255,255,0.06);
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .preview-table th {
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--text-main);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .preview-table tr.header-row-highlight { background: rgba(99, 102, 241, 0.12); }
+
+        .preview-table td { color: var(--text-muted); }
+
+        .preview-table .row-num {
+            color: rgba(255,255,255,0.25);
+            font-size: 0.7rem;
+            text-align: center;
+            width: 30px;
+            min-width: 30px;
+        }
+
+        /* Results Dashboard */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--panel-border);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+        }
+
+        .summary-card .card-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-card .card-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .summary-card .card-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .card-value.success { color: var(--success-color); }
+        .card-value.warning { color: var(--warning-color); }
+        .card-value.info { color: var(--info-color); }
+
+        /* Comparison Table */
+        .comparison-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--panel-border);
+            border-radius: 0.5rem;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        .comparison-table th, .comparison-table td {
+            padding: 0.625rem 0.75rem;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .comparison-table thead th {
+            background: rgba(30, 41, 59, 0.9);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        .comparison-table .vendor-header {
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--text-main);
+            text-align: center;
+            text-transform: none;
+            font-size: 0.85rem;
+            letter-spacing: normal;
+        }
+
+        .comparison-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+        .comparison-table td { color: #cbd5e1; }
+
+        .comparison-table .desc-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .comparison-table .price-cell {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .comparison-table .best-price {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--success-color);
+            font-weight: 600;
+        }
+
+        .comparison-table .worst-price {
+            background: rgba(239, 68, 68, 0.06);
+        }
+
+        .comparison-table .qty-warn {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--warning-color);
+        }
+
+        .comparison-table .no-bid {
+            color: rgba(255,255,255,0.2);
+            font-style: italic;
+            text-align: center;
+        }
+
+        .comparison-table tfoot td {
+            background: rgba(30, 41, 59, 0.9);
+            font-weight: 700;
+            color: var(--text-main);
+            border-top: 2px solid rgba(255,255,255,0.15);
+        }
+
+        /* Discrepancy Alerts */
+        .alert {
+            padding: 1rem 1.25rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: var(--warning-color);
+        }
+
+        .alert-info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            color: var(--info-color);
+        }
+
+        .alert svg { flex-shrink: 0; margin-top: 1px; }
+
+        /* Vendor breakdown table */
+        .vendor-summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .vendor-summary-table th, .vendor-summary-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--panel-border);
+            text-align: left;
+        }
+
+        .vendor-summary-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .vendor-summary-table .currency {
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+        }
+
+        .vendor-summary-table tr.best-vendor { background: rgba(16, 185, 129, 0.08); }
+        .vendor-summary-table tr.best-vendor td:first-child { color: var(--success-color); font-weight: 700; }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--success-color); }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning-color); }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--panel-bg);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--success-color);
+            color: var(--text-main);
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 50;
+        }
+
+        .toast.show { transform: translateY(0); opacity: 1; }
+
+        /* Spinner */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 1.2s linear infinite; }
+
+        /* Form controls */
+        .form-control {
+            padding: 0.65rem 1rem;
+            background: var(--input-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 0.5rem;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        .form-control:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); }
+
+        /* Progress log */
+        .log-line { padding: 0.25rem 0; display: flex; align-items: center; gap: 0.5rem; }
+        .log-line.done { color: var(--success-color); }
+        .log-line.error { color: var(--danger-color); }
+        .log-line.working { color: var(--info-color); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .mapping-grid { grid-template-columns: repeat(2, 1fr); }
+            .summary-cards { grid-template-columns: repeat(2, 1fr); }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Estimate Comparison</h1>
+        <a href="index.html" class="back-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Back
+        </a>
+    </header>
+
+    <!-- Step Indicator -->
+    <div class="steps" id="stepIndicator">
+        <div class="step-item active" data-step="1">
+            <span class="step-num">1</span>
+            Upload Estimates
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" data-step="2">
+            <span class="step-num">2</span>
+            Map Columns
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" data-step="3">
+            <span class="step-num">3</span>
+            Compare &amp; Export
+        </div>
+    </div>
+
+    <div class="content">
+
+        <!-- STEP 1: Upload -->
+        <div class="step-content active" id="step1">
+            <div class="panel">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload Vendor Estimates
+                </h2>
+                <div class="drop-zone" id="dropZone">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                    <p class="drop-title">Drop estimate files here</p>
+                    <p>or click to browse &mdash; one file per vendor</p>
+                    <p style="margin-top:0.75rem;font-size:0.8rem;opacity:0.5">Supports .xlsx, .xls, .csv, .pdf</p>
+                </div>
+                <input type="file" id="fileInput" multiple accept=".xlsx,.xls,.csv,.pdf" style="display:none">
+                <div class="file-list" id="fileList"></div>
+            </div>
+
+            <!-- API Key -->
+            <div class="panel" id="apiKeyPanel">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    Anthropic API Key
+                </h2>
+                <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">
+                    Required for AI-powered parsing of PDF estimates. Your key stays in your browser only.
+                </p>
+                <div style="display:flex;gap:0.75rem;align-items:center">
+                    <input type="password" id="apiKeyInput" class="form-control" placeholder="sk-ant-..." style="flex:1;font-family:monospace;font-size:0.85rem">
+                    <button class="btn btn-secondary" id="btnToggleKey" style="white-space:nowrap;padding:0.65rem 1rem" title="Show/Hide">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Analyze Button -->
+            <div class="btn-row" id="uploadActions" style="display:none">
+                <button class="btn btn-success" id="btnAnalyze" style="font-size:1.1rem;padding:1rem 2rem">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Analyze &amp; Compare with AI
+                </button>
+            </div>
+
+            <!-- Progress -->
+            <div class="panel" id="progressPanel" style="display:none">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+                    Processing...
+                </h2>
+                <div id="progressLog" style="font-size:0.85rem;color:var(--text-muted);line-height:1.8"></div>
+            </div>
+        </div>
+
+        <!-- STEP 2: Column Mapping (fallback for Excel files) -->
+        <div class="step-content" id="step2">
+            <div class="panel">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                    Map Columns to Fields
+                </h2>
+                <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.25rem">
+                    For Excel files, tell us which columns contain the item data.
+                </p>
+                <div class="vendor-tabs" id="vendorTabs"></div>
+                <div id="mappingContent"></div>
+                <div class="btn-row">
+                    <button class="btn btn-secondary" id="btnBackToUpload">Back</button>
+                    <button class="btn btn-success" id="btnAnalyzeExcel">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        Analyze &amp; Compare
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3: Results -->
+        <div class="step-content" id="step3">
+            <!-- Summary -->
+            <div class="summary-cards" id="summaryCards"></div>
+
+            <!-- Discrepancy alerts -->
+            <div id="discrepancyAlerts"></div>
+
+            <!-- Vendor Summary -->
+            <div class="panel" id="vendorSummaryPanel" style="display:none">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Vendor Summary
+                </h2>
+                <div class="table-responsive">
+                    <table class="vendor-summary-table" id="vendorSummaryTable">
+                        <thead><tr>
+                            <th>Vendor</th>
+                            <th>Total Bid</th>
+                            <th>Low Items</th>
+                            <th>High Items</th>
+                            <th>vs. Best Mix</th>
+                        </tr></thead>
+                        <tbody id="vendorSummaryBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Comparison Table -->
+            <div class="panel">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1.25rem">
+                    <h2 style="margin-bottom:0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                        Line Item Comparison
+                    </h2>
+                    <div style="display:flex;gap:0.75rem">
+                        <button class="btn btn-secondary" id="btnBackToMapping">Back</button>
+                        <button class="btn btn-success" id="btnExport">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Export to Excel
+                        </button>
+                    </div>
+                </div>
+                <div class="comparison-wrap" id="comparisonWrap">
+                    <table class="comparison-table" id="comparisonTable">
+                        <thead id="comparisonHead"></thead>
+                        <tbody id="comparisonBody"></tbody>
+                        <tfoot id="comparisonFoot"></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="toast" class="toast">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success-color)"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span id="toastMsg">Done!</span>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        /* ===== STATE ===== */
+        const vendors = [];      // { id, name, fileName, fileSize, rawText, sheetData, isPDF, lineItems }
+        let activeVendorIdx = 0;
+        let comparisonResults = null; // { matchedItems, vendorNames }
+
+        /* ===== ELEMENTS ===== */
+        const dropZone       = document.getElementById('dropZone');
+        const fileInput      = document.getElementById('fileInput');
+        const fileList       = document.getElementById('fileList');
+        const uploadActions  = document.getElementById('uploadActions');
+        const vendorTabs     = document.getElementById('vendorTabs');
+        const mappingContent = document.getElementById('mappingContent');
+        const toast          = document.getElementById('toast');
+        const toastMsg       = document.getElementById('toastMsg');
+        const apiKeyInput    = document.getElementById('apiKeyInput');
+        const progressPanel  = document.getElementById('progressPanel');
+        const progressLog    = document.getElementById('progressLog');
+
+        // Load saved API key
+        apiKeyInput.value = localStorage.getItem('anthropicApiKey') || '';
+        apiKeyInput.addEventListener('change', () => {
+            localStorage.setItem('anthropicApiKey', apiKeyInput.value.trim());
+        });
+
+        // Toggle key visibility
+        document.getElementById('btnToggleKey').addEventListener('click', () => {
+            apiKeyInput.type = apiKeyInput.type === 'password' ? 'text' : 'password';
+        });
+
+        /* ===== STEP NAVIGATION ===== */
+        function showStep(n) {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('step' + n).classList.add('active');
+            document.querySelectorAll('.step-item').forEach(el => {
+                const s = +el.dataset.step;
+                el.classList.toggle('active', s === n);
+                el.classList.toggle('completed', s < n);
+            });
+            document.querySelectorAll('.step-connector').forEach((el, i) => {
+                el.classList.toggle('completed', i + 1 < n);
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.querySelectorAll('.step-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const s = +el.dataset.step;
+                if (s === 1) showStep(1);
+                else if (s === 3 && comparisonResults) showStep(3);
+            });
+        });
+
+        document.getElementById('btnBackToUpload').addEventListener('click', () => showStep(1));
+        document.getElementById('btnBackToMapping').addEventListener('click', () => showStep(1));
+        document.getElementById('btnAnalyze').addEventListener('click', runAIAnalysis);
+        document.getElementById('btnAnalyzeExcel').addEventListener('click', runAnalysis);
+        document.getElementById('btnExport').addEventListener('click', exportExcel);
+
+        /* ===== FILE UPLOAD ===== */
+        // Click to browse
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', e => { handleFiles(e.target.files); fileInput.value = ''; });
+
+        // Drag and drop — use window-level capture to guarantee we intercept
+        window.addEventListener('dragover', e => { e.preventDefault(); }, true);
+        window.addEventListener('drop', e => { e.preventDefault(); }, true);
+
+        dropZone.ondragenter = e => { e.preventDefault(); dropZone.classList.add('drag-over'); };
+        dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add('drag-over'); };
+        dropZone.ondragleave = e => { dropZone.classList.remove('drag-over'); };
+        dropZone.ondrop = e => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const files = e.dataTransfer && e.dataTransfer.files;
+            if (files && files.length > 0) handleFiles(files);
+        };
+
+        function handleFiles(files) {
+            for (const file of files) {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (!['xlsx', 'xls', 'csv', 'pdf'].includes(ext)) continue;
+                if (vendors.some(v => v.fileName === file.name && v.fileSize === file.size)) continue;
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const isPDF = ext === 'pdf';
+                        let sheetData = null;
+                        let rawText = '';
+
+                        if (isPDF) {
+                            rawText = await extractPDFText(data);
+                        } else {
+                            const wb = XLSX.read(data, { type: 'array' });
+                            const ws = wb.Sheets[wb.SheetNames[0]];
+                            sheetData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                        }
+
+                        let vName = file.name.replace(/\.(xlsx|xls|csv|pdf)$/i, '')
+                            .replace(/[_-]+/g, ' ')
+                            .replace(/\b(bid|estimate|quote|pricing|proposal)\b/gi, '')
+                            .trim() || file.name;
+
+                        const vendor = {
+                            id: Date.now() + Math.random(),
+                            name: vName,
+                            fileName: file.name,
+                            fileSize: file.size,
+                            isPDF,
+                            rawText,
+                            sheetData,
+                            headerRow: sheetData ? detectHeaderRow(sheetData) : 0,
+                            columnMap: sheetData ? detectColumns(sheetData, detectHeaderRow(sheetData)) : {},
+                            lineItems: []
+                        };
+
+                        vendors.push(vendor);
+                        renderFileList();
+                    } catch (err) {
+                        showToast('Error reading ' + file.name);
+                        console.error(err);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        /* ===== PDF TEXT EXTRACTION ===== */
+        async function extractPDFText(data) {
+            await window._pdfjsReady;
+            const pdf = await pdfjsLib.getDocument({ data }).promise;
+            let fullText = '';
+
+            for (let p = 1; p <= pdf.numPages; p++) {
+                const page = await pdf.getPage(p);
+                const textContent = await page.getTextContent();
+                const viewport = page.getViewport({ scale: 1 });
+                const items = textContent.items.filter(it => it.str.trim());
+                if (items.length === 0) continue;
+
+                // Sort top-to-bottom, left-to-right
+                items.sort((a, b) => {
+                    const ay = viewport.height - a.transform[5];
+                    const by = viewport.height - b.transform[5];
+                    if (Math.abs(ay - by) > 3) return ay - by;
+                    return a.transform[4] - b.transform[4];
+                });
+
+                // Reconstruct lines
+                let lastY = null;
+                for (const item of items) {
+                    const y = Math.round(viewport.height - item.transform[5]);
+                    if (lastY !== null && Math.abs(y - lastY) > 3) {
+                        fullText += '\n';
+                    } else if (lastY !== null) {
+                        fullText += '  ';
+                    }
+                    fullText += item.str;
+                    lastY = y;
+                }
+                fullText += '\n\n';
+            }
+
+            return fullText;
+        }
+
+        /* ===== AI ANALYSIS ===== */
+        function addLog(msg, cls) {
+            const div = document.createElement('div');
+            div.className = 'log-line ' + (cls || '');
+            const icon = cls === 'done' ? '\u2713' : cls === 'error' ? '\u2717' : '\u25CB';
+            div.textContent = icon + '  ' + msg;
+            progressLog.appendChild(div);
+            progressLog.scrollTop = progressLog.scrollHeight;
+            return div;
+        }
+
+        function cleanJSON(str) {
+            // Strip markdown code fences that LLMs sometimes add
+            let s = str.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+            // Try parsing as-is first
+            try { JSON.parse(s); return s; } catch (e) {}
+            // Truncated response — try to repair by closing open brackets
+            // Trim trailing partial tokens (incomplete strings, keys, numbers)
+            s = s.replace(/,\s*"[^"]*$/, '');    // trailing partial key or string
+            s = s.replace(/,\s*\{[^}]*$/, '');    // trailing partial object
+            s = s.replace(/,\s*$/, '');            // trailing comma
+            // Count unclosed brackets and close them
+            let opens = 0, closes = 0;
+            for (const ch of s) { if (ch === '[') opens++; if (ch === ']') closes++; }
+            for (let i = 0; i < opens - closes; i++) s += ']';
+            opens = 0; closes = 0;
+            for (const ch of s) { if (ch === '{') opens++; if (ch === '}') closes++; }
+            for (let i = 0; i < opens - closes; i++) s += '}';
+            return s;
+        }
+
+        async function runAIAnalysis() {
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) {
+                showToast('Enter your Anthropic API key first');
+                apiKeyInput.focus();
+                return;
+            }
+            if (vendors.length < 2) {
+                showToast('Upload at least 2 vendor files');
+                return;
+            }
+
+            // Show progress
+            progressPanel.style.display = 'block';
+            progressLog.innerHTML = '';
+            document.getElementById('btnAnalyze').disabled = true;
+
+            try {
+                // Step 1: Parse each vendor's PDF with AI
+                for (const v of vendors) {
+                    if (v.isPDF) {
+                        const logLine = addLog('Parsing ' + v.name + '...', 'working');
+                        const resp = await fetch('/api/parse', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ apiKey, text: v.rawText })
+                        });
+                        const json = await resp.json();
+                        if (!resp.ok) throw new Error(json.error || 'API error for ' + v.name);
+
+                        const parsed = JSON.parse(cleanJSON(json.result));
+                        v.lineItems = (parsed.items || []).map(it => ({
+                            itemNo: '',
+                            description: it.description || '',
+                            qty: Number(it.quantity) || 0,
+                            unit: it.unit || '',
+                            unitPrice: Number(it.unitPrice) || 0,
+                            total: Number(it.total) || 0
+                        }));
+                        logLine.className = 'log-line done';
+                        logLine.textContent = '\u2713  ' + v.name + ' \u2014 ' + v.lineItems.length + ' items found';
+                    } else {
+                        // Excel: use existing parser
+                        parseLineItems(v);
+                        addLog(v.name + ' \u2014 ' + v.lineItems.length + ' items (Excel)', 'done');
+                    }
+                }
+
+                // Step 2: Match items across vendors with AI
+                const matchLog = addLog('Matching items across vendors...', 'working');
+                const vendorSummary = vendors.map(v => {
+                    const itemLines = v.lineItems.map(it =>
+                        `  - ${it.description} | Qty: ${it.qty} ${it.unit} | UP: $${it.unitPrice} | Total: $${it.total}`
+                    ).join('\n');
+                    return `\n=== ${v.name} ===\n${itemLines}`;
+                }).join('\n');
+
+                const matchResp = await fetch('/api/match', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKey, text: vendorSummary })
+                });
+                const matchJson = await matchResp.json();
+                if (!matchResp.ok) throw new Error(matchJson.error || 'Matching failed');
+
+                const matchData = JSON.parse(cleanJSON(matchJson.result));
+                const vendorNames = vendors.map(v => v.name);
+
+                // Convert AI match results to our comparison format
+                const matchedItems = (matchData.matched || []).map(m => {
+                    const vendorsObj = {};
+                    for (const [vn, d] of Object.entries(m.vendors || {})) {
+                        vendorsObj[vn] = {
+                            qty: Number(d.qty) || 0,
+                            unitPrice: Number(d.unitPrice) || 0,
+                            total: Number(d.total) || (Number(d.unitPrice) * Number(d.qty)) || 0
+                        };
+                    }
+                    return {
+                        description: m.description || '',
+                        itemNo: '',
+                        unit: m.unit || '',
+                        vendors: vendorsObj
+                    };
+                });
+
+                matchLog.className = 'log-line done';
+                matchLog.textContent = '\u2713  Matched ' + matchedItems.length + ' line items';
+
+                comparisonResults = { matchedItems, vendorNames };
+                renderResults();
+                showStep(3);
+
+            } catch (err) {
+                addLog('Error: ' + err.message, 'error');
+                console.error(err);
+                showToast('Analysis failed \u2014 check log');
+            } finally {
+                document.getElementById('btnAnalyze').disabled = false;
+            }
+        }
+
+        function renderFileList() {
+            fileList.innerHTML = '';
+            uploadActions.style.display = vendors.length >= 2 ? 'flex' : 'none';
+            progressPanel.style.display = 'none';
+
+            vendors.forEach((v, idx) => {
+                const div = document.createElement('div');
+                div.className = 'file-item';
+                const typeLabel = v.isPDF ? 'PDF' : v.sheetData ? v.sheetData.length + ' rows' : '';
+                div.innerHTML = `
+                    <div class="file-icon" style="${v.isPDF ? 'background:rgba(239,68,68,0.15);color:#ef4444' : ''}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <div class="file-info">
+                        <input type="text" value="${escapeAttr(v.name)}" data-idx="${idx}" class="vendor-name-input">
+                        <div class="file-meta">${escapeHTML(v.fileName)} &mdash; ${typeLabel}</div>
+                    </div>
+                    <button class="file-remove" data-idx="${idx}" title="Remove">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                `;
+                fileList.appendChild(div);
+            });
+
+            fileList.querySelectorAll('.vendor-name-input').forEach(input => {
+                input.addEventListener('change', e => {
+                    vendors[+e.target.dataset.idx].name = e.target.value.trim() || vendors[+e.target.dataset.idx].fileName;
+                });
+            });
+            fileList.querySelectorAll('.file-remove').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    vendors.splice(+e.currentTarget.dataset.idx, 1);
+                    renderFileList();
+                });
+            });
+
+            if (vendors.length === 1) {
+                const hint = document.createElement('div');
+                hint.className = 'alert alert-info';
+                hint.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    Upload at least 2 vendor files to compare.`;
+                fileList.appendChild(hint);
+            }
+        }
+
+        /* ===== HEADER & COLUMN DETECTION ===== */
+        const HEADER_PATTERNS = {
+            description: /\b(description|desc|item\s*desc|work\s*desc|scope|pay\s*item|material|product)\b/i,
+            quantity:    /\b(qty|quantity|quan|est\.?\s*qty|plan\s*qty|estimated\s*quantity)\b/i,
+            unit:        /\b(unit|uom|unit\s*of\s*measure|units|u\/m)\b/i,
+            unitPrice:   /\b(unit\s*price|price|unit\s*cost|rate|bid\s*price|cost\s*per|per\s*unit|u\.?\s*price)\b/i,
+            total:       /\b(total|amount|extension|extended|ext\.?\s*(?:price|cost|amount)?|line\s*total|bid\s*amount|ext\s*cost)\b/i,
+            itemNo:      /\b(item\s*(?:#|no\.?|number)?|line\s*(?:#|no\.?|number)?|bid\s*item|no\.?|#)\b/i
+        };
+
+        function detectHeaderRow(data) {
+            let bestRow = 0, bestScore = 0;
+            const limit = Math.min(data.length, 25);
+            for (let r = 0; r < limit; r++) {
+                const row = data[r];
+                if (!row || row.length < 3) continue;
+                let score = 0;
+                const rowText = row.map(c => String(c).toLowerCase()).join(' ');
+                for (const pat of Object.values(HEADER_PATTERNS)) {
+                    if (pat.test(rowText)) score++;
+                }
+                if (score > bestScore) { bestScore = score; bestRow = r; }
+            }
+            return bestRow;
+        }
+
+        function detectColumns(data, headerRow) {
+            const map = { itemNo: -1, description: -1, quantity: -1, unit: -1, unitPrice: -1, total: -1 };
+            if (!data[headerRow]) return map;
+
+            const headers = data[headerRow].map(c => String(c).trim());
+            for (let c = 0; c < headers.length; c++) {
+                const h = headers[c];
+                if (!h) continue;
+                for (const [field, pat] of Object.entries(HEADER_PATTERNS)) {
+                    if (pat.test(h) && map[field] === -1) {
+                        map[field] = c;
+                        break;
+                    }
+                }
+            }
+
+            // Fallback: if description not found, use the widest text column
+            if (map.description === -1) {
+                let maxLen = 0, maxCol = -1;
+                for (let c = 0; c < headers.length; c++) {
+                    const avgLen = data.slice(headerRow + 1, headerRow + 10)
+                        .reduce((sum, row) => sum + String(row[c] || '').length, 0);
+                    if (avgLen > maxLen) { maxLen = avgLen; maxCol = c; }
+                }
+                if (maxCol >= 0) map.description = maxCol;
+            }
+
+            return map;
+        }
+
+        /* ===== COLUMN MAPPING UI ===== */
+        function buildMappingUI() {
+            vendorTabs.innerHTML = '';
+            vendors.forEach((v, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'vendor-tab' + (i === activeVendorIdx ? ' active' : '');
+                const allMapped = v.columnMap.description >= 0 && (v.columnMap.unitPrice >= 0 || v.columnMap.total >= 0);
+                if (allMapped) btn.classList.add('mapped');
+                btn.textContent = v.name;
+                btn.addEventListener('click', () => { activeVendorIdx = i; buildMappingUI(); });
+                vendorTabs.appendChild(btn);
+            });
+            renderMappingForVendor(activeVendorIdx);
+        }
+
+        function renderMappingForVendor(idx) {
+            const v = vendors[idx];
+            if (!v) return;
+            const data = v.sheetData;
+            const colCount = data.reduce((max, row) => Math.max(max, row ? row.length : 0), 0);
+
+            // Build column options
+            const headerCells = data[v.headerRow] || [];
+            let colOptions = '<option value="-1">-- Skip --</option>';
+            for (let c = 0; c < colCount; c++) {
+                const label = headerCells[c] ? String(headerCells[c]).substring(0, 40) : `Column ${c + 1}`;
+                colOptions += `<option value="${c}">${escapeHTML(`${String.fromCharCode(65 + (c % 26))}${c >= 26 ? Math.floor(c / 26) : ''}: ${label}`)}</option>`;
+            }
+
+            const fields = [
+                { key: 'itemNo', label: 'Item #' },
+                { key: 'description', label: 'Description *' },
+                { key: 'quantity', label: 'Quantity' },
+                { key: 'unit', label: 'Unit' },
+                { key: 'unitPrice', label: 'Unit Price' },
+                { key: 'total', label: 'Total Price' }
+            ];
+
+            let html = `
+                <div class="header-row-field">
+                    <label>Header is on row:</label>
+                    <input type="number" min="1" value="${v.headerRow + 1}" id="headerRowInput">
+                    <span style="color:var(--text-muted);font-size:0.8rem">(data starts on next row)</span>
+                </div>
+                <div class="mapping-grid">
+                    ${fields.map(f => `
+                        <div class="mapping-field">
+                            <label>${f.label}</label>
+                            <select data-field="${f.key}">
+                                ${colOptions.replace(`value="${v.columnMap[f.key]}"`, `value="${v.columnMap[f.key]}" selected`)}
+                            </select>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="preview-wrap">
+                    <table class="preview-table">
+                        <thead><tr><th class="row-num">#</th>${
+                            Array.from({ length: colCount }, (_, c) => {
+                                const h = headerCells[c] ? String(headerCells[c]).substring(0, 30) : '';
+                                return `<th>${escapeHTML(h) || `Col ${c + 1}`}</th>`;
+                            }).join('')
+                        }</tr></thead>
+                        <tbody>${
+                            data.slice(0, Math.min(data.length, 30)).map((row, r) => {
+                                const isHeader = r === v.headerRow;
+                                return `<tr class="${isHeader ? 'header-row-highlight' : ''}">
+                                    <td class="row-num">${r + 1}</td>
+                                    ${Array.from({ length: colCount }, (_, c) => {
+                                        const val = row && row[c] != null ? String(row[c]).substring(0, 60) : '';
+                                        return `<td>${escapeHTML(val)}</td>`;
+                                    }).join('')}
+                                </tr>`;
+                            }).join('')
+                        }</tbody>
+                    </table>
+                </div>
+            `;
+
+            mappingContent.innerHTML = html;
+
+            // Events
+            document.getElementById('headerRowInput').addEventListener('change', e => {
+                v.headerRow = Math.max(0, parseInt(e.target.value, 10) - 1) || 0;
+                v.columnMap = detectColumns(data, v.headerRow);
+                renderMappingForVendor(idx);
+            });
+
+            mappingContent.querySelectorAll('.mapping-field select').forEach(sel => {
+                sel.addEventListener('change', e => {
+                    v.columnMap[e.target.dataset.field] = parseInt(e.target.value, 10);
+                });
+            });
+        }
+
+        /* ===== PARSING LINE ITEMS ===== */
+        function parseLineItems(vendor) {
+            const data = vendor.sheetData;
+            const map = vendor.columnMap;
+            const items = [];
+            const startRow = vendor.headerRow + 1;
+
+            for (let r = startRow; r < data.length; r++) {
+                const row = data[r];
+                if (!row) continue;
+
+                const desc = map.description >= 0 ? String(row[map.description] || '').trim() : '';
+                if (!desc) continue;
+
+                // Skip total/subtotal rows
+                const descLower = desc.toLowerCase();
+                if (/^(total|subtotal|sub-total|grand total|sum|tax|markup|overhead|profit|bond|contingency)\b/.test(descLower)) continue;
+
+                const rawQty = map.quantity >= 0 ? row[map.quantity] : '';
+                const rawUP  = map.unitPrice >= 0 ? row[map.unitPrice] : '';
+                const rawTot = map.total >= 0 ? row[map.total] : '';
+
+                const qty       = parseNumber(rawQty);
+                const unitPrice = parseNumber(rawUP);
+                const total     = parseNumber(rawTot);
+
+                // Skip rows with no price data at all
+                if (unitPrice === 0 && total === 0 && qty === 0) continue;
+
+                const itemNo = map.itemNo >= 0 ? String(row[map.itemNo] || '').trim() : '';
+                const unit   = map.unit >= 0 ? String(row[map.unit] || '').trim() : '';
+
+                // Calculate missing values
+                let finalUP = unitPrice;
+                let finalTotal = total;
+                if (finalUP === 0 && finalTotal > 0 && qty > 0) finalUP = finalTotal / qty;
+                if (finalTotal === 0 && finalUP > 0 && qty > 0) finalTotal = finalUP * qty;
+
+                items.push({ itemNo, description: desc, qty, unit, unitPrice: finalUP, total: finalTotal });
+            }
+
+            vendor.lineItems = items;
+            return items;
+        }
+
+        function parseNumber(val) {
+            if (typeof val === 'number') return val;
+            if (!val) return 0;
+            const cleaned = String(val).replace(/[$,\s]/g, '').replace(/\(([^)]+)\)/, '-$1');
+            const n = parseFloat(cleaned);
+            return isNaN(n) ? 0 : n;
+        }
+
+        /* ===== MATCHING & ANALYSIS ===== */
+        function normalizeDesc(desc) {
+            return desc.toLowerCase()
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function similarity(a, b) {
+            const wordsA = new Set(normalizeDesc(a).split(' ').filter(w => w.length > 1));
+            const wordsB = new Set(normalizeDesc(b).split(' ').filter(w => w.length > 1));
+            if (wordsA.size === 0 && wordsB.size === 0) return 0;
+            let intersection = 0;
+            for (const w of wordsA) { if (wordsB.has(w)) intersection++; }
+            return intersection / (wordsA.size + wordsB.size - intersection);
+        }
+
+        function matchItems() {
+            // Parse all vendors
+            vendors.forEach(v => parseLineItems(v));
+
+            const vendorNames = vendors.map(v => v.name);
+            // Master list: start from first vendor, merge others
+            const masterItems = []; // { key, description, itemNo, unit, vendors: { [name]: { qty, unitPrice, total } } }
+
+            // Seed from first vendor
+            vendors[0].lineItems.forEach(item => {
+                masterItems.push({
+                    description: item.description,
+                    itemNo: item.itemNo,
+                    unit: item.unit || '',
+                    vendors: { [vendorNames[0]]: { qty: item.qty, unitPrice: item.unitPrice, total: item.total } }
+                });
+            });
+
+            // Match subsequent vendors
+            for (let vi = 1; vi < vendors.length; vi++) {
+                const vName = vendorNames[vi];
+                const items = vendors[vi].lineItems;
+                const used = new Set();
+
+                items.forEach(item => {
+                    let bestIdx = -1, bestScore = 0;
+
+                    // Try item number match first
+                    if (item.itemNo) {
+                        for (let mi = 0; mi < masterItems.length; mi++) {
+                            if (used.has(mi)) continue;
+                            if (masterItems[mi].itemNo && masterItems[mi].itemNo === item.itemNo) {
+                                bestIdx = mi;
+                                bestScore = 2; // definite match
+                                break;
+                            }
+                        }
+                    }
+
+                    // Try description similarity
+                    if (bestScore < 1) {
+                        for (let mi = 0; mi < masterItems.length; mi++) {
+                            if (used.has(mi)) continue;
+                            if (masterItems[mi].vendors[vName]) continue; // already matched
+                            const score = similarity(masterItems[mi].description, item.description);
+                            if (score > bestScore) { bestScore = score; bestIdx = mi; }
+                        }
+                    }
+
+                    if (bestScore >= 0.4 && bestIdx >= 0) {
+                        masterItems[bestIdx].vendors[vName] = { qty: item.qty, unitPrice: item.unitPrice, total: item.total };
+                        if (!masterItems[bestIdx].unit && item.unit) masterItems[bestIdx].unit = item.unit;
+                        used.add(bestIdx);
+                    } else {
+                        // New item not in master list
+                        masterItems.push({
+                            description: item.description,
+                            itemNo: item.itemNo,
+                            unit: item.unit || '',
+                            vendors: { [vName]: { qty: item.qty, unitPrice: item.unitPrice, total: item.total } }
+                        });
+                    }
+                });
+            }
+
+            return { matchedItems: masterItems, vendorNames };
+        }
+
+        /* ===== ANALYSIS ===== */
+        function runAnalysis() {
+            // Validate mappings
+            for (const v of vendors) {
+                if (v.columnMap.description < 0) {
+                    showToast(`Map the Description column for "${v.name}"`);
+                    return;
+                }
+                if (v.columnMap.unitPrice < 0 && v.columnMap.total < 0) {
+                    showToast(`Map Unit Price or Total for "${v.name}"`);
+                    return;
+                }
+            }
+
+            comparisonResults = matchItems();
+            renderResults();
+            showStep(3);
+        }
+
+        /* ===== RENDER RESULTS ===== */
+        function renderResults() {
+            const { matchedItems, vendorNames } = comparisonResults;
+            const fmt = (n) => n ? '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+
+            // Compute stats
+            const vendorTotals = {};
+            const vendorLowCount = {};
+            const vendorHighCount = {};
+            vendorNames.forEach(n => { vendorTotals[n] = 0; vendorLowCount[n] = 0; vendorHighCount[n] = 0; });
+
+            let bestMixTotal = 0;
+            let discrepancies = [];
+
+            matchedItems.forEach((item, idx) => {
+                const entries = Object.entries(item.vendors);
+                let lowPrice = Infinity, lowVendor = '', highPrice = 0;
+
+                entries.forEach(([vn, d]) => {
+                    const price = d.total || (d.unitPrice * d.qty);
+                    vendorTotals[vn] += price;
+                    if (price > 0 && price < lowPrice) { lowPrice = price; lowVendor = vn; }
+                    if (price > highPrice) highPrice = price;
+                });
+
+                if (lowPrice < Infinity) {
+                    bestMixTotal += lowPrice;
+                    vendorLowCount[lowVendor]++;
+                    entries.forEach(([vn, d]) => {
+                        const price = d.total || (d.unitPrice * d.qty);
+                        if (price === highPrice && entries.length > 1 && price > lowPrice) vendorHighCount[vn]++;
+                    });
+                }
+
+                // Check quantity discrepancies
+                const qtys = entries.map(([, d]) => d.qty).filter(q => q > 0);
+                if (qtys.length >= 2) {
+                    const minQ = Math.min(...qtys), maxQ = Math.max(...qtys);
+                    if (maxQ > 0 && (maxQ - minQ) / maxQ > 0.1) {
+                        discrepancies.push({ idx, description: item.description, entries: entries.map(([vn, d]) => ({ vendor: vn, qty: d.qty })) });
+                    }
+                }
+            });
+
+            // Summary Cards
+            const lowestVendor = Object.entries(vendorTotals).sort((a, b) => a[1] - b[1])[0];
+            const highestVendor = Object.entries(vendorTotals).sort((a, b) => b[1] - a[1])[0];
+
+            document.getElementById('summaryCards').innerHTML = `
+                <div class="summary-card">
+                    <div class="card-label">Lowest Total Bid</div>
+                    <div class="card-value success">${fmt(lowestVendor[1])}</div>
+                    <div class="card-sub">${escapeHTML(lowestVendor[0])}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-label">Best-Price Mix</div>
+                    <div class="card-value info">${fmt(bestMixTotal)}</div>
+                    <div class="card-sub">Picking lowest per item</div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-label">Potential Savings</div>
+                    <div class="card-value success">${fmt(lowestVendor[1] - bestMixTotal)}</div>
+                    <div class="card-sub">vs. lowest single vendor</div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-label">Qty Discrepancies</div>
+                    <div class="card-value ${discrepancies.length > 0 ? 'warning' : ''}">${discrepancies.length}</div>
+                    <div class="card-sub">${discrepancies.length > 0 ? 'Items need review' : 'All quantities match'}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-label">Line Items</div>
+                    <div class="card-value">${matchedItems.length}</div>
+                    <div class="card-sub">Across ${vendorNames.length} vendors</div>
+                </div>
+            `;
+
+            // Discrepancy Alerts
+            const alertsDiv = document.getElementById('discrepancyAlerts');
+            if (discrepancies.length > 0) {
+                alertsDiv.innerHTML = discrepancies.map(d => `
+                    <div class="alert alert-warning">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        <div>
+                            <strong>${escapeHTML(d.description)}</strong> &mdash; Quantity mismatch:
+                            ${d.entries.map(e => `${escapeHTML(e.vendor)}: ${e.qty.toLocaleString()}`).join(' &bull; ')}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                alertsDiv.innerHTML = '';
+            }
+
+            // Vendor Summary Table
+            const vsPanel = document.getElementById('vendorSummaryPanel');
+            const vsBody = document.getElementById('vendorSummaryBody');
+            vsPanel.style.display = 'block';
+            const sortedVendors = Object.entries(vendorTotals).sort((a, b) => a[1] - b[1]);
+            vsBody.innerHTML = sortedVendors.map(([vn, total], i) => {
+                const isBest = i === 0;
+                const overBest = total - bestMixTotal;
+                return `<tr class="${isBest ? 'best-vendor' : ''}">
+                    <td>${escapeHTML(vn)} ${isBest ? '<span class="badge badge-success">LOWEST</span>' : ''}</td>
+                    <td class="currency">${fmt(total)}</td>
+                    <td>${vendorLowCount[vn]} of ${matchedItems.length}</td>
+                    <td>${vendorHighCount[vn]}</td>
+                    <td class="currency" style="color:${overBest > 0 ? 'var(--danger-color)' : 'var(--success-color)'}">${overBest > 0 ? '+' : ''}${fmt(overBest)}</td>
+                </tr>`;
+            }).join('');
+
+            // Comparison Table
+            const thead = document.getElementById('comparisonHead');
+            const tbody = document.getElementById('comparisonBody');
+            const tfoot = document.getElementById('comparisonFoot');
+
+            // Header row 1: vendor group headers
+            let h1 = '<tr><th rowspan="2">#</th><th rowspan="2">Description</th><th rowspan="2">Unit</th>';
+            vendorNames.forEach(vn => { h1 += `<th colspan="3" class="vendor-header">${escapeHTML(vn)}</th>`; });
+            h1 += '<th rowspan="2">Low Vendor</th><th rowspan="2">Low Price</th></tr>';
+
+            // Header row 2: sub-columns
+            let h2 = '<tr>';
+            vendorNames.forEach(() => { h2 += '<th>Qty</th><th>Unit Price</th><th>Total</th>'; });
+            h2 += '</tr>';
+
+            thead.innerHTML = h1 + h2;
+
+            // Body
+            tbody.innerHTML = matchedItems.map((item, idx) => {
+                const entries = Object.entries(item.vendors);
+                let lowPrice = Infinity, lowVendor = '';
+                let highPrice = 0;
+                entries.forEach(([vn, d]) => {
+                    const price = d.total || (d.unitPrice * d.qty);
+                    if (price > 0 && price < lowPrice) { lowPrice = price; lowVendor = vn; }
+                    if (price > highPrice) highPrice = price;
+                });
+
+                // Check if this item has a qty discrepancy
+                const qtys = entries.map(([, d]) => d.qty).filter(q => q > 0);
+                let qtyWarn = false;
+                if (qtys.length >= 2) {
+                    const minQ = Math.min(...qtys), maxQ = Math.max(...qtys);
+                    if (maxQ > 0 && (maxQ - minQ) / maxQ > 0.1) qtyWarn = true;
+                }
+
+                let row = `<tr>`;
+                row += `<td>${idx + 1}</td>`;
+                row += `<td class="desc-cell" title="${escapeAttr(item.description)}">${escapeHTML(item.description)}</td>`;
+                row += `<td>${escapeHTML(item.unit)}</td>`;
+
+                vendorNames.forEach(vn => {
+                    const d = item.vendors[vn];
+                    if (!d) {
+                        row += '<td class="no-bid">-</td><td class="no-bid">-</td><td class="no-bid">-</td>';
+                        return;
+                    }
+                    const price = d.total || (d.unitPrice * d.qty);
+                    const isBest = price === lowPrice && entries.length > 1;
+                    const isWorst = price === highPrice && entries.length > 1 && highPrice > lowPrice;
+                    const qtyClass = qtyWarn ? ' qty-warn' : '';
+
+                    row += `<td class="${qtyClass}">${d.qty ? d.qty.toLocaleString() : '-'}</td>`;
+                    row += `<td class="price-cell${isBest ? ' best-price' : isWorst ? ' worst-price' : ''}">${d.unitPrice ? fmt(d.unitPrice) : '-'}</td>`;
+                    row += `<td class="price-cell${isBest ? ' best-price' : isWorst ? ' worst-price' : ''}">${price ? fmt(price) : '-'}</td>`;
+                });
+
+                row += `<td>${lowPrice < Infinity ? escapeHTML(lowVendor) : '-'}</td>`;
+                row += `<td class="price-cell" style="font-weight:700;color:var(--success-color)">${lowPrice < Infinity ? fmt(lowPrice) : '-'}</td>`;
+                row += '</tr>';
+                return row;
+            }).join('');
+
+            // Footer totals
+            let footRow = '<tr><td></td><td><strong>TOTALS</strong></td><td></td>';
+            vendorNames.forEach(vn => {
+                footRow += `<td></td><td></td><td class="price-cell">${fmt(vendorTotals[vn])}</td>`;
+            });
+            footRow += `<td></td><td class="price-cell" style="color:var(--success-color)">${fmt(bestMixTotal)}</td></tr>`;
+            tfoot.innerHTML = footRow;
+        }
+
+        /* ===== EXCEL EXPORT ===== */
+        function exportExcel() {
+            const { matchedItems, vendorNames } = comparisonResults;
+            const wb = XLSX.utils.book_new();
+            const fmt2 = (n) => n ? Math.round(n * 100) / 100 : '';
+
+            // Headers: Description | Qty | Unit | Vendor1 | Vendor2 | ... | % Diff | Low Vendor
+            const headers = ['Description', 'Qty', 'Unit'];
+            vendorNames.forEach(vn => headers.push(vn));
+            headers.push('% Difference', 'Low Vendor');
+
+            const data = [headers];
+            const vendorTotals = {};
+            vendorNames.forEach(n => vendorTotals[n] = 0);
+
+            matchedItems.forEach(item => {
+                // Get representative qty (first vendor that has one)
+                let qty = '', unit = item.unit || '';
+                let lowPrice = Infinity, highPrice = 0, lowVendor = '';
+
+                const prices = {};
+                vendorNames.forEach(vn => {
+                    const d = item.vendors[vn];
+                    if (!d) return;
+                    if (!qty && d.qty) qty = d.qty;
+                    if (!unit && d.unit) unit = d.unit;
+                    const price = d.total || (d.unitPrice * d.qty);
+                    prices[vn] = price;
+                    vendorTotals[vn] += price;
+                    if (price > 0 && price < lowPrice) { lowPrice = price; lowVendor = vn; }
+                    if (price > highPrice) highPrice = price;
+                });
+
+                const row = [item.description, qty, unit];
+                vendorNames.forEach(vn => {
+                    row.push(prices[vn] ? fmt2(prices[vn]) : '');
+                });
+
+                // % difference between highest and lowest
+                let pctDiff = '';
+                if (lowPrice > 0 && lowPrice < Infinity && highPrice > lowPrice) {
+                    pctDiff = Math.round(((highPrice - lowPrice) / lowPrice) * 1000) / 10 + '%';
+                }
+                row.push(pctDiff, lowVendor);
+                data.push(row);
+            });
+
+            // Totals row
+            const totalRow = ['TOTALS', '', ''];
+            const totalValues = vendorNames.map(vn => vendorTotals[vn]);
+            const lowestTotal = Math.min(...totalValues.filter(v => v > 0));
+            const highestTotal = Math.max(...totalValues);
+            vendorNames.forEach(vn => totalRow.push(fmt2(vendorTotals[vn])));
+            let totalPct = '';
+            if (lowestTotal > 0 && highestTotal > lowestTotal) {
+                totalPct = Math.round(((highestTotal - lowestTotal) / lowestTotal) * 1000) / 10 + '%';
+            }
+            const lowestVendor = vendorNames.find(vn => vendorTotals[vn] === lowestTotal) || '';
+            totalRow.push(totalPct, lowestVendor);
+            data.push(totalRow);
+
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            ws['!cols'] = [
+                { wch: 45 }, { wch: 8 }, { wch: 8 },
+                ...vendorNames.map(() => ({ wch: 16 })),
+                { wch: 12 }, { wch: 20 }
+            ];
+            XLSX.utils.book_append_sheet(wb, ws, 'Bid Comparison');
+
+            XLSX.writeFile(wb, 'Bid_Comparison_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+            showToast('Excel exported!');
+        }
+
+        /* ===== UTILITIES ===== */
+        function showToast(msg) {
+            toastMsg.textContent = msg || 'Done!';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3500);
+        }
+
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.innerText = String(str);
+            return div.innerHTML;
+        }
+
+        function escapeAttr(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
+        }
+    });
+    </script>
+</body>
+</html>
