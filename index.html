@@ -322,6 +322,72 @@
         .util-item .util-color { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
         .util-total-row { font-weight: 600; border-top: 1px solid #555; padding-top: 4px; margin-top: 2px; }
 
+        /* ── Count List ── */
+        #count-list {
+            grid-column: 2;
+            display: none;
+            max-height: 120px;
+            overflow-y: auto;
+            padding: 6px 10px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+        #count-list.show { display: block; }
+        .count-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        /* ── Area List ── */
+        #area-list {
+            grid-column: 2;
+            display: none;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 6px 10px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+        #area-list.show { display: block; }
+        .area-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .area-item .area-val { color: #44DDAA; font-weight: 600; }
+        .area-total-row { font-weight: 600; border-top: 1px solid #555; padding-top: 4px; margin-top: 2px; }
+
+        /* ── Volume List ── */
+        #volume-list {
+            grid-column: 2;
+            display: none;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 6px 10px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+        #volume-list.show { display: block; }
+        .vol-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .vol-item .vol-val { color: #FF9933; font-weight: 600; }
+
         /* ── Legend ── */
         #legend {
             margin-top: auto;
@@ -471,6 +537,11 @@
         <button id="btn-next" disabled>&gt;</button>
         <button id="btn-last" disabled title="Last page">&gt;|</button>
         <span id="scale-display" style="display:none; font-size:12px; color:#00AAFF; background:#333; padding:4px 8px; border-radius:4px; white-space:nowrap;"></span>
+        <select id="unit-system" style="padding:5px 6px; background:#333; color:#ccc; border:1px solid #555; border-radius:4px; font-size:12px;">
+            <option value="ft-in">ft'-in"</option>
+            <option value="ft-dec">Decimal ft</option>
+            <option value="metric">Metric (m)</option>
+        </select>
         <span style="flex:1"></span>
         <button id="btn-zoom-out">-</button>
         <button id="btn-zoom-in">+</button>
@@ -493,6 +564,18 @@
         <button class="side-btn is-disabled" id="btn-polyline">
             <svg viewBox="0 0 24 24"><path d="M2,3V9L6,6.7V17.3L2,15V21H8V17.3L12,19.6V17.3L16,19.6V21H22V15L18,17.3V6.7L22,9V3H16V6.7L12,4.4V6.7L8,4.4V3H2Z"/></svg>
             Polyline
+        </button>
+        <button class="side-btn is-disabled" id="btn-count">
+            <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,7H13V13H11V7Z"/></svg>
+            Count
+        </button>
+        <button class="side-btn is-disabled" id="btn-area">
+            <svg viewBox="0 0 24 24"><path d="M2,4H4V2H10V4A10,10 0 0,1 20,14H22V20H20V22H14V20A10,10 0 0,1 4,10H2V4M14,4V2H20V8H18V4H14M4,14H2V20H8V18H4V14Z"/></svg>
+            Area
+        </button>
+        <button class="side-btn is-disabled" id="btn-volume">
+            <svg viewBox="0 0 24 24"><path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L5,8.09V15.91L12,19.85L19,15.91V8.09L12,4.15Z"/></svg>
+            Volume
         </button>
         <button class="side-btn is-disabled" id="btn-utility">
             <svg viewBox="0 0 24 24"><path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M11,7H13V13H11V7M11,15H13V17H11V15Z"/></svg>
@@ -522,6 +605,9 @@
                 <div class="legend-item"><span class="legend-swatch" style="background:#FF3333;"></span>Measurement</div>
                 <div class="legend-item"><span class="legend-swatch" style="background:#FFD700; height:2px;"></span>Distance Label</div>
                 <div class="legend-item"><span class="legend-swatch" style="background:#FF8800;"></span>Polyline</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#FF44FF; border-radius:50%;"></span>Count</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#44DDAA; opacity:0.5;"></span>Area</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#FF9933; opacity:0.5;"></span>Volume</div>
                 <div style="border-top:1px solid #444; margin:3px 0;"></div>
                 <div class="legend-item"><span class="legend-swatch" style="background:#0066FF;"></span>Water</div>
                 <div class="legend-item"><span class="legend-swatch" style="background:#00AA44;"></span>Sewer</div>
@@ -546,6 +632,8 @@
                     <option value="in">inches</option>
                     <option value="yd">yards</option>
                     <option value="m">meters</option>
+                    <option value="cm">centimeters</option>
+                    <option value="mm">millimeters</option>
                 </select>
             </div>
             <div class="modal-row">
@@ -672,8 +760,67 @@
     </div>
 
     <div id="measurements"></div>
+    <div id="count-list"></div>
+    <div id="area-list"></div>
+    <div id="volume-list"></div>
     <div id="utility-list"></div>
     <div id="status">Open a PDF to start</div>
+
+    <!-- Area result modal — shows after closing an area polygon -->
+    <div id="area-modal" style="display:none">
+        <div class="modal-box" id="area-modal-box" style="max-width:320px;">
+            <div class="modal-drag-handle" id="area-drag-handle">
+                <h3>Area Result</h3>
+                <button class="modal-close" id="area-close">&times;</button>
+            </div>
+            <div id="area-result" style="padding:4px 0; font-size:14px; color:#ccc;"></div>
+            <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <p style="color:#ccc; font-size:13px; margin-bottom:6px;">Enter depth for cubic yards (optional):</p>
+                <div class="modal-row">
+                    <input type="number" id="area-depth" placeholder="0" step="any" min="0" inputmode="decimal"
+                        style="flex:1; padding:8px; background:#1a1a1a; color:#fff; border:1px solid #555; border-radius:4px; font-size:14px;">
+                    <select id="area-depth-unit" style="padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:14px;">
+                        <option value="ft">feet</option>
+                        <option value="in">inches</option>
+                        <option value="m">meters</option>
+                        <option value="cm">centimeters</option>
+                    </select>
+                </div>
+                <div id="area-cuyd-result" style="padding:6px 0; font-size:14px; color:#FFD700; font-weight:600;"></div>
+            </div>
+            <div class="modal-row" style="margin-top:10px; margin-bottom:0;">
+                <button id="area-ok" class="active" style="flex:1;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Volume modal — always prompts for depth -->
+    <div id="volume-modal" style="display:none">
+        <div class="modal-box" id="volume-modal-box" style="max-width:320px;">
+            <div class="modal-drag-handle" id="volume-drag-handle">
+                <h3>Volume (Cubic Yards)</h3>
+                <button class="modal-close" id="vol-close">&times;</button>
+            </div>
+            <div style="padding:4px 0; font-size:14px; color:#ccc;">
+                Area: <strong id="vol-area-display" style="color:#FF9933;"></strong>
+            </div>
+            <p style="color:#ccc; font-size:13px; margin:8px 0 6px;">Enter depth:</p>
+            <div class="modal-row">
+                <input type="number" id="vol-depth" placeholder="0" step="any" min="0" inputmode="decimal"
+                    style="flex:1; padding:8px; background:#1a1a1a; color:#fff; border:1px solid #555; border-radius:4px; font-size:14px;">
+                <select id="vol-depth-unit" style="padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:6px; font-size:14px;">
+                    <option value="ft">feet</option>
+                    <option value="in">inches</option>
+                    <option value="m">meters</option>
+                    <option value="cm">centimeters</option>
+                </select>
+            </div>
+            <div id="vol-result" style="padding:10px 0; font-size:20px; color:#FFD700; font-weight:700; text-align:center;"></div>
+            <div class="modal-row" style="margin-top:4px; margin-bottom:0;">
+                <button id="vol-ok" class="active" style="flex:1;">OK</button>
+            </div>
+        </div>
+    </div>
 
     <div id="empty">
         <svg viewBox="0 0 24 24" width="56" height="56"><path fill="#666" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>
@@ -700,6 +847,16 @@
                     <li>Tap <strong>Set Scale</strong> in the toolbar</li>
                     <li>Enter the plan scale directly (e.g. 1" = 20 ft) <em>— or —</em></li>
                     <li>Tap "calibrate" to tap two points on a known dimension, then enter the real distance</li>
+                    <li>Supports <strong>Imperial</strong> (feet, inches, yards) and <strong>Metric</strong> (meters, cm, mm)</li>
+                </ul>
+
+                <h4>Units</h4>
+                <ul>
+                    <li>Use the <strong>unit dropdown</strong> in the top bar to switch display format</li>
+                    <li><strong>ft'-in"</strong> — feet and inches (e.g., 10'-6")</li>
+                    <li><strong>Decimal ft</strong> — decimal feet (e.g., 10.50 ft)</li>
+                    <li><strong>Metric (m)</strong> — meters (e.g., 3.20 m)</li>
+                    <li>Changing units recalculates all existing measurements instantly</li>
                 </ul>
 
                 <h4>Measuring</h4>
@@ -707,6 +864,21 @@
                     <li><strong>Measure</strong> — tap two points for a straight-line distance</li>
                     <li><strong>Polyline</strong> — tap multiple points for a running total; double-tap or tap "Finish" to complete</li>
                     <li>Drag any measurement point to adjust it</li>
+                </ul>
+
+                <h4>Count</h4>
+                <ul>
+                    <li>Tap <strong>Count</strong> to enter counting mode</li>
+                    <li>Each tap places a numbered marker on the plan</li>
+                    <li>Running total is displayed in the status bar and count panel</li>
+                </ul>
+
+                <h4>Area</h4>
+                <ul>
+                    <li>Tap <strong>Area</strong> to enter area measurement mode (requires scale)</li>
+                    <li>Tap 3+ points to define a polygon; double-tap or tap "Finish" to close</li>
+                    <li>Shows area in <strong>square feet</strong> and <strong>square yards</strong></li>
+                    <li>Optionally enter a <strong>depth</strong> to calculate <strong>cubic yards</strong></li>
                 </ul>
 
                 <h4>Utilities</h4>
@@ -737,11 +909,22 @@
                     <li><strong>Compare</strong> — overlay two PDF pages to spot differences</li>
                     <li><strong>Export</strong> — save your measurements as an image</li>
                     <li><strong>Undo</strong> — remove the last measurement or utility line</li>
-                    <li><strong>Snaps</strong> — toggle snap-to-endpoint dots from PDF vectors</li>
+                    <li><strong>Snaps</strong> — toggle snap points extracted from PDF line geometry (endpoints and intersections)</li>
                 </ul>
 
                 <h4>Add to Home Screen</h4>
                 <p>For the best experience on iPad or iPhone, tap the <strong>Share</strong> button in Safari and select <strong>"Add to Home Screen"</strong>. The app will run full-screen like a native app.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Clear modal -->
+    <div id="confirm-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+        <div style="background:#333; border:1px solid #555; border-radius:10px; padding:20px; max-width:300px; text-align:center;">
+            <p style="margin-bottom:16px; font-size:15px; color:#fff;">Clear all measurements, counts, areas, utilities, and scale?</p>
+            <div style="display:flex; gap:10px;">
+                <button id="confirm-cancel" style="flex:1; padding:12px; font-size:15px; background:#555; border:1px solid #666; border-radius:6px; color:#fff;">Cancel</button>
+                <button id="confirm-ok" style="flex:1; padding:12px; font-size:15px; background:#c33; border:1px solid #a22; border-radius:6px; color:#fff; font-weight:600;">Clear All</button>
             </div>
         </div>
     </div>
@@ -785,6 +968,12 @@
         // Scale: PDF points per real-world unit.
         let scalePtPerUnit = null;
         let scaleUnit = 'ft';
+        let unitSystem = 'ft-in'; // 'ft-in' | 'ft-dec' | 'metric'
+
+        // Conversion factors: unit → feet
+        const UNIT_TO_FT = { ft: 1, in: 1/12, yd: 3, m: 3.28084, cm: 0.0328084, mm: 0.00328084 };
+        // Conversion factors: unit → meters
+        const UNIT_TO_M = { ft: 0.3048, in: 0.0254, yd: 0.9144, m: 1, cm: 0.01, mm: 0.001 };
 
         // Scale calibration: store the two tapped points + pixel dist
         let scaleCalibPts = null;  // {p1, p2, ptsDist} — set after two taps in scale mode
@@ -801,6 +990,20 @@
         let pendingUtilLine = null; // stash points while label popup is open
         let _lastPolyTapTime = 0;
         let _lastUtilTapTime = 0;
+
+        // Count tool
+        let countPoints = [];     // [{x, y, id, num}] in PDF pts
+        let countColor = '#FF44FF'; // magenta markers
+
+        // Area tool
+        let areas = [];           // [{points:[], sqft, sqyd, cuyd, depth, label, id}]
+        let areaPoints = [];      // in-progress polygon points [{x,y}]
+        const AREA_COLOR = '#44DDAA';
+
+        // Volume tool
+        let volumes = [];         // [{points:[], sqft, depth, cuyd, label, id}]
+        let volPoints = [];       // in-progress polygon points [{x,y}]
+        const VOL_COLOR = '#FF9933';
 
         const UTIL_COLORS = {
             water: '#0066FF',
@@ -837,7 +1040,10 @@
             if (currentPage < 1) return;
             pageAnnotations[currentPage] = {
                 measurements: [...measurements],
-                utilityLines: [...utilityLines]
+                utilityLines: [...utilityLines],
+                countPoints: [...countPoints],
+                areas: [...areas],
+                volumes: [...volumes]
             };
         }
         function loadPageData(pageNum) {
@@ -845,17 +1051,28 @@
             if (data) {
                 measurements = [...data.measurements];
                 utilityLines = [...data.utilityLines];
+                countPoints = data.countPoints ? [...data.countPoints] : [];
+                areas = data.areas ? [...data.areas] : [];
+                volumes = data.volumes ? [...data.volumes] : [];
             } else {
                 measurements = [];
                 utilityLines = [];
+                countPoints = [];
+                areas = [];
+                volumes = [];
             }
             // Reset in-progress drawing state when switching pages
             tapPoint = null;
             polyPoints = [];
             utilPolyPts = [];
+            areaPoints = [];
+            volPoints = [];
             cursorPt = null;
             updateMeasurementsList();
             updateUtilityList();
+            updateCountList();
+            updateAreaList();
+            updateVolumeList();
         }
 
         // Helper: enable/disable sidebar buttons via CSS class (not HTML disabled, which blocks events)
@@ -887,6 +1104,7 @@
             sideEnable('#btn-compare');
             sideEnable('#btn-export');
             sideEnable('#btn-utility');
+            sideEnable('#btn-count');
             viewer.style.display = '';
             await renderPage(1);
             setMode('none');
@@ -925,6 +1143,7 @@
             sideEnable('#btn-compare');
             sideEnable('#btn-export');
             sideEnable('#btn-utility');
+            sideEnable('#btn-count');
             viewer.style.display = '';
 
             updatePageInfo();
@@ -970,8 +1189,8 @@
 
         async function extractSnapPoints(page, viewport) {
             snapPoints = [];
-            const seen = new Set();
             const tx = viewport.transform;
+            const MIN_SEG_LEN = 3; // minimum PDF-pt segment length (skip tiny text glyphs)
 
             function toViewPt(px, py) {
                 return {
@@ -980,14 +1199,50 @@
                 };
             }
 
-            function addPt(px, py) {
-                const pt = toViewPt(px, py);
-                if (pt.x < 0 || pt.y < 0 || pt.x > pdfPageWidth || pt.y > pdfPageHeight) return;
-                const key = `${Math.round(pt.x * 2)},${Math.round(pt.y * 2)}`;
-                if (!seen.has(key)) {
-                    seen.add(key);
-                    snapPoints.push(pt);
+            // Collect straight-line segments only (skip curves = skip text glyphs)
+            const segments = []; // [{p1:{x,y}, p2:{x,y}}] in view coords
+            const MAX_SEGMENTS = 20000; // safety cap for complex plans
+            let curX = 0, curY = 0;
+
+            function processOp(op, subArgs, ai) {
+                const MT = pdfjsLib.OPS.moveTo;
+                const LT = pdfjsLib.OPS.lineTo;
+                const CT = pdfjsLib.OPS.curveTo;
+                const CT2 = pdfjsLib.OPS.curveTo2;
+                const CT3 = pdfjsLib.OPS.curveTo3;
+                const RECT = pdfjsLib.OPS.rectangle;
+                const CP = pdfjsLib.OPS.closePath;
+
+                if (op === MT || op === 13) {
+                    curX = subArgs[ai]; curY = subArgs[ai + 1];
+                    return ai + 2;
+                } else if (op === LT || op === 14) {
+                    const nx = subArgs[ai], ny = subArgs[ai + 1];
+                    const p1 = toViewPt(curX, curY);
+                    const p2 = toViewPt(nx, ny);
+                    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                    if (Math.sqrt(dx * dx + dy * dy) >= MIN_SEG_LEN) {
+                        segments.push({ p1, p2 });
+                    }
+                    curX = nx; curY = ny;
+                    return ai + 2;
+                } else if (op === CT || op === 15) {
+                    // Skip curves (text glyphs, arcs) — just advance cursor to endpoint
+                    curX = subArgs[ai + 4]; curY = subArgs[ai + 5];
+                    return ai + 6;
+                } else if (op === CT2 || op === 16 || op === CT3 || op === 17) {
+                    curX = subArgs[ai + 2]; curY = subArgs[ai + 3];
+                    return ai + 4;
+                } else if (op === RECT || op === 19) {
+                    const rx = subArgs[ai], ry = subArgs[ai + 1], rw = subArgs[ai + 2], rh = subArgs[ai + 3];
+                    const c1 = toViewPt(rx, ry), c2 = toViewPt(rx + rw, ry);
+                    const c3 = toViewPt(rx + rw, ry + rh), c4 = toViewPt(rx, ry + rh);
+                    segments.push({ p1: c1, p2: c2 }, { p1: c2, p2: c3 }, { p1: c3, p2: c4 }, { p1: c4, p2: c1 });
+                    return ai + 4;
+                } else if (op === CP || op === 20) {
+                    return ai;
                 }
+                return ai; // unknown op, don't advance (safe fallback)
             }
 
             try {
@@ -995,101 +1250,108 @@
                 const fns = ops.fnArray;
                 const argsArr = ops.argsArray;
 
-                // Log OPS constants so we know what to match
-                const opsMap = {};
-                for (const [name, val] of Object.entries(pdfjsLib.OPS)) {
-                    opsMap[val] = name;
-                }
-
-                // Count operator types for debugging
-                const opCounts = {};
-                for (const fn of fns) {
-                    const name = opsMap[fn] || `unknown(${fn})`;
-                    opCounts[name] = (opCounts[name] || 0) + 1;
-                }
-                console.log('PDF operators found:', JSON.stringify(opCounts));
-                console.log('OPS.constructPath =', pdfjsLib.OPS.constructPath);
-                console.log('OPS.moveTo =', pdfjsLib.OPS.moveTo);
-                console.log('OPS.lineTo =', pdfjsLib.OPS.lineTo);
-                console.log('OPS.rectangle =', pdfjsLib.OPS.rectangle);
-
-                for (let i = 0; i < fns.length; i++) {
+                for (let i = 0; i < fns.length && segments.length < MAX_SEGMENTS; i++) {
                     const fn = fns[i];
                     const fnArgs = argsArr[i];
 
                     if (fn === pdfjsLib.OPS.constructPath) {
                         const subOps = fnArgs[0];
                         const subArgs = fnArgs[1];
-                        if (i === 0) {
-                            console.log('constructPath sample subOps:', subOps.slice(0, 20));
-                            console.log('constructPath sample subArgs:', subArgs.slice(0, 20));
-                            console.log('OPS.moveTo value check:', pdfjsLib.OPS.moveTo);
-                        }
                         let ai = 0;
                         for (const op of subOps) {
-                            switch (op) {
-                                case pdfjsLib.OPS.moveTo:
-                                    addPt(subArgs[ai], subArgs[ai + 1]);
-                                    ai += 2;
-                                    break;
-                                case pdfjsLib.OPS.lineTo:
-                                    addPt(subArgs[ai], subArgs[ai + 1]);
-                                    ai += 2;
-                                    break;
-                                case pdfjsLib.OPS.curveTo:
-                                    addPt(subArgs[ai], subArgs[ai + 1]);
-                                    addPt(subArgs[ai + 2], subArgs[ai + 3]);
-                                    addPt(subArgs[ai + 4], subArgs[ai + 5]);
-                                    ai += 6;
-                                    break;
-                                case pdfjsLib.OPS.curveTo2:
-                                    addPt(subArgs[ai], subArgs[ai + 1]);
-                                    addPt(subArgs[ai + 2], subArgs[ai + 3]);
-                                    ai += 4;
-                                    break;
-                                case pdfjsLib.OPS.curveTo3:
-                                    addPt(subArgs[ai], subArgs[ai + 1]);
-                                    addPt(subArgs[ai + 2], subArgs[ai + 3]);
-                                    ai += 4;
-                                    break;
-                                case pdfjsLib.OPS.rectangle:
-                                    addPt(subArgs[ai], subArgs[ai + 1]);
-                                    addPt(subArgs[ai] + subArgs[ai + 2], subArgs[ai + 1]);
-                                    addPt(subArgs[ai], subArgs[ai + 1] + subArgs[ai + 3]);
-                                    addPt(subArgs[ai] + subArgs[ai + 2], subArgs[ai + 1] + subArgs[ai + 3]);
-                                    ai += 4;
-                                    break;
-                                case pdfjsLib.OPS.closePath:
-                                    break;
-                                default:
-                                    // Try matching by hardcoded values in case OPS names differ for sub-ops
-                                    // moveTo=13, lineTo=14, curveTo=15, curveTo2=16, curveTo3=17, rect=19, close=20
-                                    if (op === 13) { addPt(subArgs[ai], subArgs[ai+1]); ai += 2; }
-                                    else if (op === 14) { addPt(subArgs[ai], subArgs[ai+1]); ai += 2; }
-                                    else if (op === 15) { addPt(subArgs[ai],subArgs[ai+1]); addPt(subArgs[ai+2],subArgs[ai+3]); addPt(subArgs[ai+4],subArgs[ai+5]); ai += 6; }
-                                    else if (op === 16 || op === 17) { addPt(subArgs[ai],subArgs[ai+1]); addPt(subArgs[ai+2],subArgs[ai+3]); ai += 4; }
-                                    else if (op === 19) { addPt(subArgs[ai],subArgs[ai+1]); ai += 4; }
-                                    else if (op === 20) { /* close */ }
-                                    break;
-                            }
+                            ai = processOp(op, subArgs, ai);
+                            if (segments.length >= MAX_SEGMENTS) break;
                         }
                     }
-                    // Individual ops (some pdf.js versions)
                     else if (fn === pdfjsLib.OPS.moveTo) {
-                        addPt(fnArgs[0], fnArgs[1]);
+                        curX = fnArgs[0]; curY = fnArgs[1];
                     } else if (fn === pdfjsLib.OPS.lineTo) {
-                        addPt(fnArgs[0], fnArgs[1]);
+                        const p1 = toViewPt(curX, curY);
+                        const p2 = toViewPt(fnArgs[0], fnArgs[1]);
+                        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                        if (Math.sqrt(dx * dx + dy * dy) >= MIN_SEG_LEN) {
+                            segments.push({ p1, p2 });
+                        }
+                        curX = fnArgs[0]; curY = fnArgs[1];
                     } else if (fn === pdfjsLib.OPS.rectangle) {
-                        addPt(fnArgs[0], fnArgs[1]);
-                        addPt(fnArgs[0] + fnArgs[2], fnArgs[1]);
-                        addPt(fnArgs[0], fnArgs[1] + fnArgs[3]);
-                        addPt(fnArgs[0] + fnArgs[2], fnArgs[1] + fnArgs[3]);
+                        const rx = fnArgs[0], ry = fnArgs[1], rw = fnArgs[2], rh = fnArgs[3];
+                        const c1 = toViewPt(rx, ry), c2 = toViewPt(rx + rw, ry);
+                        const c3 = toViewPt(rx + rw, ry + rh), c4 = toViewPt(rx, ry + rh);
+                        segments.push({ p1: c1, p2: c2 }, { p1: c2, p2: c3 }, { p1: c3, p2: c4 }, { p1: c4, p2: c1 });
                     }
                 }
             } catch (err) {
                 console.warn('Snap extraction failed:', err);
             }
-            console.log(`Snap: ${snapPoints.length} points extracted`);
+
+            // Build snap points from line endpoints (+ intersections if manageable)
+            const seen = new Set();
+
+            function addSnapPt(pt) {
+                if (pt.x < 0 || pt.y < 0 || pt.x > pdfPageWidth || pt.y > pdfPageHeight) return;
+                const key = `${Math.round(pt.x)},${Math.round(pt.y)}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    snapPoints.push(pt);
+                }
+            }
+
+            // Add all line endpoints
+            for (const seg of segments) {
+                addSnapPt(seg.p1);
+                addSnapPt(seg.p2);
+            }
+
+            // Only compute intersections if segment count is reasonable (< 5000)
+            // Otherwise it locks the browser on complex plans
+            if (segments.length < 5000) {
+                const GRID = 50;
+                const grid = {};
+                for (let si = 0; si < segments.length; si++) {
+                    const s = segments[si];
+                    const minX = Math.min(s.p1.x, s.p2.x), maxX = Math.max(s.p1.x, s.p2.x);
+                    const minY = Math.min(s.p1.y, s.p2.y), maxY = Math.max(s.p1.y, s.p2.y);
+                    const gx0 = Math.floor(minX / GRID), gx1 = Math.floor(maxX / GRID);
+                    const gy0 = Math.floor(minY / GRID), gy1 = Math.floor(maxY / GRID);
+                    for (let gx = gx0; gx <= gx1; gx++) {
+                        for (let gy = gy0; gy <= gy1; gy++) {
+                            const k = gx + ',' + gy;
+                            if (!grid[k]) grid[k] = [];
+                            grid[k].push(si);
+                        }
+                    }
+                }
+
+                function segIntersect(a, b) {
+                    const dx1 = a.p2.x - a.p1.x, dy1 = a.p2.y - a.p1.y;
+                    const dx2 = b.p2.x - b.p1.x, dy2 = b.p2.y - b.p1.y;
+                    const denom = dx1 * dy2 - dy1 * dx2;
+                    if (Math.abs(denom) < 0.001) return null;
+                    const dx3 = b.p1.x - a.p1.x, dy3 = b.p1.y - a.p1.y;
+                    const t = (dx3 * dy2 - dy3 * dx2) / denom;
+                    const u = (dx3 * dy1 - dy3 * dx1) / denom;
+                    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+                        return { x: a.p1.x + t * dx1, y: a.p1.y + t * dy1 };
+                    }
+                    return null;
+                }
+
+                const checked = new Set();
+                for (const cell of Object.values(grid)) {
+                    for (let i = 0; i < cell.length; i++) {
+                        for (let j = i + 1; j < cell.length; j++) {
+                            const a = cell[i], b = cell[j];
+                            const pairKey = a < b ? a + ':' + b : b + ':' + a;
+                            if (checked.has(pairKey)) continue;
+                            checked.add(pairKey);
+                            const pt = segIntersect(segments[a], segments[b]);
+                            if (pt) addSnapPt(pt);
+                        }
+                    }
+                }
+            }
+
+            console.log(`Snap: ${snapPoints.length} points from ${segments.length} segments`);
         }
 
         // Find nearest snap point within radius (in screen pixels)
@@ -1302,7 +1564,7 @@
                 }
 
                 // Live preview: update cursor position for rubber-band line
-                if ((tapPoint || polyPoints.length > 0 || utilPolyPts.length > 0) && mode !== 'none') {
+                if ((tapPoint || polyPoints.length > 0 || utilPolyPts.length > 0 || areaPoints.length > 0 || volPoints.length > 0) && mode !== 'none') {
                     cursorPt = screenToPdfPts(e.clientX, e.clientY);
                     rebuildSVG();
                 }
@@ -1385,7 +1647,7 @@
         viewer.addEventListener('mousemove', e => {
             if (Object.keys(touches).length > 0) return; // pointer events handle this
             if (mode === 'none') { cursorPt = null; return; }
-            if (tapPoint || polyPoints.length > 0 || utilPolyPts.length > 0) {
+            if (tapPoint || polyPoints.length > 0 || utilPolyPts.length > 0 || areaPoints.length > 0 || volPoints.length > 0) {
                 cursorPt = screenToPdfPts(e.clientX, e.clientY);
                 rebuildSVG();
             }
@@ -1401,6 +1663,20 @@
             if (e.key !== 'Escape') return;
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
+            if (volPoints.length > 0) {
+                volPoints = [];
+                cursorPt = null;
+                rebuildSVG();
+                setStatus('Volume cancelled. Tap to start a new one.');
+                return;
+            }
+            if (areaPoints.length > 0) {
+                areaPoints = [];
+                cursorPt = null;
+                rebuildSVG();
+                setStatus('Area cancelled. Tap to start a new one.');
+                return;
+            }
             if (utilPolyPts.length > 0) {
                 utilPolyPts = [];
                 cursorPt = null;
@@ -1613,6 +1889,10 @@
                 finishPolyline();
             } else if (mode === 'utility' && utilPolyPts.length >= 2) {
                 finishUtilityLine();
+            } else if (mode === 'area' && areaPoints.length >= 3) {
+                finishArea();
+            } else if (mode === 'volume' && volPoints.length >= 3) {
+                finishVolume();
             }
         });
 
@@ -1638,6 +1918,43 @@
 
             // Bounds check
             if (pt.x < 0 || pt.y < 0 || pt.x > pdfPageWidth || pt.y > pdfPageHeight) return;
+
+            if (mode === 'count') {
+                const num = countPoints.length + 1;
+                const id = ++idCounter;
+                countPoints.push({ x: pt.x, y: pt.y, id, num });
+                savePageData();
+                sideEnable('#btn-undo');
+                $('#btn-clear-all').disabled = false;
+                rebuildSVG();
+                updateCountList();
+                setStatus('Count: ' + countPoints.length + ' | Tap to add more.');
+                return;
+            }
+
+            if (mode === 'area') {
+                if (!scalePtPerUnit) { setStatus('Set scale first.'); return; }
+                areaPoints.push(pt);
+                rebuildSVG();
+                if (areaPoints.length >= 3) {
+                    setStatus(areaPoints.length + ' pts | <a href="#" onclick="window._finishArea(); return false;" style="color:#FF8800; text-decoration:underline;">Finish</a>');
+                } else {
+                    setStatus('Tap ' + (3 - areaPoints.length) + ' more point(s) to define area.');
+                }
+                return;
+            }
+
+            if (mode === 'volume') {
+                if (!scalePtPerUnit) { setStatus('Set scale first.'); return; }
+                volPoints.push(pt);
+                rebuildSVG();
+                if (volPoints.length >= 3) {
+                    setStatus(volPoints.length + ' pts | <a href="#" onclick="window._finishVolume(); return false;" style="color:#FF8800; text-decoration:underline;">Finish</a>');
+                } else {
+                    setStatus('Tap ' + (3 - volPoints.length) + ' more point(s) to define volume area.');
+                }
+                return;
+            }
 
             if (mode === 'utility') {
                 if (!activeUtilType) return; // shouldn't happen
@@ -1799,15 +2116,220 @@
         }
         window._finishPoly = finishPolyline;
 
+        // ── Area: shoelace formula for polygon area in PDF pts² ──
+        function polygonAreaPts2(pts) {
+            let area = 0;
+            const n = pts.length;
+            for (let i = 0; i < n; i++) {
+                const j = (i + 1) % n;
+                area += pts[i].x * pts[j].y;
+                area -= pts[j].x * pts[i].y;
+            }
+            return Math.abs(area) / 2;
+        }
+
+        function finishArea() {
+            if (areaPoints.length < 3) { areaPoints = []; rebuildSVG(); return; }
+            const areaPts2 = polygonAreaPts2(areaPoints);
+            // Convert from PDF pts² to real-world sq units
+            const sqUnits = areaPts2 / (scalePtPerUnit * scalePtPerUnit);
+            // Convert to sq ft (internal standard) regardless of scale unit
+            const toFt = UNIT_TO_FT[scaleUnit] || 1;
+            const sqft = sqUnits * (toFt * toFt);
+
+            const sqyd = sqft / 9;
+            const id = ++idCounter;
+            const label = formatAreaVal(sqft);
+            const area = {
+                points: [...areaPoints],
+                sqft, sqyd, cuyd: 0, depth: 0,
+                label, id
+            };
+            areas.push(area);
+            areaPoints = [];
+            savePageData();
+            sideEnable('#btn-undo');
+            $('#btn-clear-all').disabled = false;
+            updateAreaList();
+            rebuildSVG();
+
+            // Show area result modal
+            showAreaModal(area);
+        }
+        window._finishArea = finishArea;
+
+        function showAreaModal(area) {
+            const modal = $('#area-modal');
+            modal.style.display = 'block';
+            const box = $('#area-modal-box');
+            box.style.left = Math.max(0, window.innerWidth - 340) + 'px';
+            box.style.top = '60px';
+
+            const disp = sqftToDisplay(area.sqft);
+            let resultHTML;
+            if (unitSystem === 'metric') {
+                resultHTML = `<div><strong style="color:#44DDAA;">Area:</strong> <span style="color:#FFD700; font-weight:600;">${disp.primary}</span></div>`;
+            } else {
+                resultHTML = `<div style="margin-bottom:4px;"><strong style="color:#44DDAA;">Square Feet:</strong> <span style="color:#FFD700; font-weight:600;">${disp.primary}</span></div>` +
+                    `<div><strong style="color:#44DDAA;">Square Yards:</strong> <span style="color:#FFD700; font-weight:600;">${disp.secondary}</span></div>`;
+            }
+            $('#area-result').innerHTML = resultHTML;
+            $('#area-depth').value = '';
+            $('#area-cuyd-result').textContent = '';
+            // Default depth unit based on unit system
+            $('#area-depth-unit').value = unitSystem === 'metric' ? 'm' : 'ft';
+
+            // Depth input → calculate volume
+            const depthInput = $('#area-depth');
+            const depthUnit = $('#area-depth-unit');
+            const cuydResult = $('#area-cuyd-result');
+            const calcCuyd = () => {
+                let d = parseFloat(depthInput.value);
+                if (!d || d <= 0) { cuydResult.textContent = ''; return; }
+                // Convert depth to feet (internal standard)
+                const dFt = d * (UNIT_TO_FT[depthUnit.value] || 1);
+                const cuft = area.sqft * dFt;
+                const cuyd = cuft / 27;
+                area.depth = dFt;
+                area.cuyd = cuyd;
+                cuydResult.textContent = formatVolumeVal(cuyd);
+                // Update stored area
+                const idx = areas.findIndex(a => a.id === area.id);
+                if (idx >= 0) { areas[idx] = { ...area }; savePageData(); }
+                updateAreaList();
+            };
+            depthInput.oninput = calcCuyd;
+            depthUnit.onchange = calcCuyd;
+
+            $('#area-ok').onclick = () => {
+                modal.style.display = 'none';
+            };
+            $('#area-close').onclick = () => {
+                modal.style.display = 'none';
+            };
+        }
+
+        function finishVolume() {
+            if (volPoints.length < 3) { volPoints = []; rebuildSVG(); return; }
+            const areaPts2 = polygonAreaPts2(volPoints);
+            const sqUnits = areaPts2 / (scalePtPerUnit * scalePtPerUnit);
+            const toFt = UNIT_TO_FT[scaleUnit] || 1;
+            const sqft = sqUnits * (toFt * toFt);
+            const id = ++idCounter;
+            const vol = {
+                points: [...volPoints],
+                sqft, depth: 0, cuyd: 0,
+                label: '? CY', id
+            };
+            volumes.push(vol);
+            volPoints = [];
+            savePageData();
+            sideEnable('#btn-undo');
+            $('#btn-clear-all').disabled = false;
+            updateVolumeList();
+            rebuildSVG();
+            // Always prompt for depth
+            showVolumeModal(vol);
+        }
+        window._finishVolume = finishVolume;
+
+        function showVolumeModal(vol) {
+            const modal = $('#volume-modal');
+            modal.style.display = 'block';
+            const box = $('#volume-modal-box');
+            box.style.left = Math.max(0, window.innerWidth - 340) + 'px';
+            box.style.top = '60px';
+
+            const areaDisp = formatAreaVal(vol.sqft);
+            $('#vol-area-display').textContent = areaDisp;
+            $('#vol-depth').value = '';
+            $('#vol-result').textContent = '';
+            // Default depth unit
+            $('#vol-depth-unit').value = unitSystem === 'metric' ? 'm' : 'ft';
+
+            const calcVol = () => {
+                let d = parseFloat($('#vol-depth').value);
+                if (!d || d <= 0) { $('#vol-result').textContent = ''; return; }
+                const dFt = d * (UNIT_TO_FT[$('#vol-depth-unit').value] || 1);
+                const cuft = vol.sqft * dFt;
+                const cuyd = cuft / 27;
+                vol.depth = dFt;
+                vol.cuyd = cuyd;
+                vol.label = formatVolumeVal(cuyd);
+                const idx = volumes.findIndex(v => v.id === vol.id);
+                if (idx >= 0) { volumes[idx] = { ...vol }; savePageData(); }
+                $('#vol-result').textContent = vol.label;
+                updateVolumeList();
+                rebuildSVG();
+            };
+            $('#vol-depth').oninput = calcVol;
+            $('#vol-depth-unit').onchange = calcVol;
+
+            $('#vol-ok').onclick = () => {
+                if (!vol.cuyd) {
+                    // If no depth entered, remove the volume
+                    volumes = volumes.filter(v => v.id !== vol.id);
+                    savePageData();
+                    updateVolumeList();
+                    rebuildSVG();
+                }
+                modal.style.display = 'none';
+            };
+            $('#vol-close').onclick = () => { $('#vol-ok').click(); };
+
+            setTimeout(() => $('#vol-depth').focus(), 100);
+        }
+
         function formatDist(val, unit) {
-            if (unit === 'ft' && val >= 1) {
-                const feet = Math.floor(val);
-                const inches = Math.round((val - feet) * 12);
+            // val is in `unit` units; convert and display based on unitSystem
+            if (unitSystem === 'metric') {
+                const m = val * (UNIT_TO_M[unit] || 1);
+                if (m < 1) return m.toFixed(3) + ' m';
+                return m.toFixed(2) + ' m';
+            }
+            // Imperial: convert to feet first
+            const ft = val * (UNIT_TO_FT[unit] || 1);
+            if (unitSystem === 'ft-dec') {
+                if (ft < 1) return ft.toFixed(2) + ' ft';
+                return ft.toFixed(2) + ' ft';
+            }
+            // ft-in (default)
+            if (ft >= 1) {
+                const feet = Math.floor(ft);
+                const inches = Math.round((ft - feet) * 12);
                 if (inches === 0) return `${feet}'-0"`;
                 if (inches === 12) return `${feet + 1}'-0"`;
                 return `${feet}'-${inches}"`;
             }
-            return val < 1 ? val.toFixed(2) + ' ' + unit : val.toFixed(1) + ' ' + unit;
+            const inches = ft * 12;
+            return inches.toFixed(1) + '"';
+        }
+
+        function formatAreaVal(sqft) {
+            // Format area value based on unit system
+            if (unitSystem === 'metric') {
+                const sqm = sqft * 0.092903;
+                return sqm.toFixed(2) + ' m\u00B2';
+            }
+            return sqft.toFixed(1) + ' SF';
+        }
+
+        function formatVolumeVal(cuyd) {
+            if (unitSystem === 'metric') {
+                const cum = cuyd * 0.764555;
+                return cum.toFixed(2) + ' m\u00B3';
+            }
+            return cuyd.toFixed(2) + ' CY';
+        }
+
+        function sqftToDisplay(sqft) {
+            // Returns {primary, secondary} strings for area display
+            if (unitSystem === 'metric') {
+                const sqm = sqft * 0.092903;
+                return { primary: sqm.toFixed(2) + ' m\u00B2', sqm };
+            }
+            const sqyd = sqft / 9;
+            return { primary: sqft.toFixed(1) + ' SF', secondary: sqyd.toFixed(2) + ' SY', sqyd };
         }
 
         // ───────── Hit Test & Drag Measurement Points ─────────
@@ -1880,6 +2402,37 @@
             }
         }
 
+        function recalcAllLabels() {
+            if (!scalePtPerUnit) return;
+            for (const m of measurements) {
+                if (m.type === 'polyline') {
+                    let total = 0;
+                    for (let i = 1; i < m.points.length; i++) total += ptsDist(m.points[i - 1], m.points[i]);
+                    m.label = formatDist(total / scalePtPerUnit, scaleUnit);
+                } else {
+                    const dist = ptsDist({ x: m.x1, y: m.y1 }, { x: m.x2, y: m.y2 });
+                    m.label = formatDist(dist / scalePtPerUnit, scaleUnit);
+                }
+            }
+            for (const u of utilityLines) {
+                let total = 0;
+                for (let i = 1; i < u.points.length; i++) total += ptsDist(u.points[i - 1], u.points[i]);
+                u.label = formatDist(total / scalePtPerUnit, scaleUnit);
+            }
+            for (const a of areas) {
+                a.label = formatAreaVal(a.sqft);
+            }
+            for (const v of volumes) {
+                v.label = formatVolumeVal(v.cuyd);
+            }
+            savePageData();
+            rebuildSVG();
+            updateMeasurementsList();
+            updateUtilityList();
+            updateAreaList();
+            updateVolumeList();
+        }
+
         function recalcMeasurement(idx) {
             if (dragTarget && dragTarget.isUtil) {
                 recalcUtility(dragTarget.utilIdx);
@@ -1944,6 +2497,87 @@
             // Utility lines
             for (const u of utilityLines) {
                 html += utilityLineHTML(u.points, u.utilType, u.color, sz);
+            }
+
+            // Count markers
+            for (const c of countPoints) {
+                const r = 10 * s;
+                html += `<circle cx="${c.x}" cy="${c.y}" r="${r}" fill="${countColor}" stroke="#fff" stroke-width="${strokeW}" opacity="0.9"/>`;
+                html += `<text x="${c.x}" y="${c.y + fontSize * 0.35}" text-anchor="middle"
+                    style="font-size:${fontSize * 0.9}px; font-weight:bold; fill:#fff;
+                    paint-order:stroke fill; stroke:${countColor}; stroke-width:${textStroke * 0.5}px;">${c.num}</text>`;
+            }
+
+            // Completed area polygons
+            for (const a of areas) {
+                if (a.points.length < 3) continue;
+                const pts = a.points.map(p => `${p.x},${p.y}`).join(' ');
+                html += `<polygon points="${pts}" fill="${AREA_COLOR}" fill-opacity="0.15" stroke="${AREA_COLOR}" stroke-width="${strokeW}" stroke-dasharray="${6 * s} ${3 * s}"/>`;
+                // Dots at vertices
+                for (const p of a.points) {
+                    html += `<circle cx="${p.x}" cy="${p.y}" r="${dotR}" fill="${AREA_COLOR}" stroke="#fff" stroke-width="${strokeW * 0.5}"/>`;
+                }
+                // Area label at centroid
+                const cx = a.points.reduce((s, p) => s + p.x, 0) / a.points.length;
+                const cy = a.points.reduce((s, p) => s + p.y, 0) / a.points.length;
+                html += `<text x="${cx}" y="${cy}" text-anchor="middle"
+                    style="font-size:${fontSize * 1.1}px; font-weight:bold; fill:${AREA_COLOR};
+                    paint-order:stroke fill; stroke:#000; stroke-width:${textStroke * 1.2}px;
+                    stroke-linejoin:round;">${a.label}</text>`;
+                if (a.cuyd > 0) {
+                    html += `<text x="${cx}" y="${cy + fontSize * 1.3}" text-anchor="middle"
+                        style="font-size:${fontSize * 0.9}px; font-weight:bold; fill:#FFD700;
+                        paint-order:stroke fill; stroke:#000; stroke-width:${textStroke}px;
+                        stroke-linejoin:round;">${formatVolumeVal(a.cuyd)}</text>`;
+                }
+            }
+
+            // In-progress area polygon
+            if (areaPoints.length > 0) {
+                const previewPts = [...areaPoints];
+                if (cursorPt && mode === 'area') previewPts.push(cursorPt);
+                if (previewPts.length >= 3) {
+                    const pts = previewPts.map(p => `${p.x},${p.y}`).join(' ');
+                    html += `<polygon points="${pts}" fill="${AREA_COLOR}" fill-opacity="0.1" stroke="${AREA_COLOR}" stroke-width="${strokeW}" stroke-dasharray="${6 * s} ${3 * s}" opacity="0.7"/>`;
+                } else if (previewPts.length === 2) {
+                    html += `<line x1="${previewPts[0].x}" y1="${previewPts[0].y}" x2="${previewPts[1].x}" y2="${previewPts[1].y}"
+                        stroke="${AREA_COLOR}" stroke-width="${strokeW}" stroke-dasharray="${6 * s} ${3 * s}" opacity="0.7"/>`;
+                }
+                for (const p of previewPts) {
+                    html += `<circle cx="${p.x}" cy="${p.y}" r="${pendingR}" fill="${AREA_COLOR}" stroke="#fff" stroke-width="${strokeW * 0.5}" opacity="0.8"/>`;
+                }
+            }
+
+            // Completed volume polygons
+            for (const v of volumes) {
+                if (v.points.length < 3) continue;
+                const pts = v.points.map(p => `${p.x},${p.y}`).join(' ');
+                html += `<polygon points="${pts}" fill="${VOL_COLOR}" fill-opacity="0.2" stroke="${VOL_COLOR}" stroke-width="${strokeW * 1.5}" stroke-dasharray="${6 * s} ${3 * s}"/>`;
+                for (const p of v.points) {
+                    html += `<circle cx="${p.x}" cy="${p.y}" r="${dotR}" fill="${VOL_COLOR}" stroke="#fff" stroke-width="${strokeW * 0.5}"/>`;
+                }
+                const cx = v.points.reduce((s, p) => s + p.x, 0) / v.points.length;
+                const cy = v.points.reduce((s, p) => s + p.y, 0) / v.points.length;
+                html += `<text x="${cx}" y="${cy}" text-anchor="middle"
+                    style="font-size:${fontSize * 1.2}px; font-weight:bold; fill:${VOL_COLOR};
+                    paint-order:stroke fill; stroke:#000; stroke-width:${textStroke * 1.2}px;
+                    stroke-linejoin:round;">${v.label}</text>`;
+            }
+
+            // In-progress volume polygon
+            if (volPoints.length > 0) {
+                const previewPts = [...volPoints];
+                if (cursorPt && mode === 'volume') previewPts.push(cursorPt);
+                if (previewPts.length >= 3) {
+                    const pts = previewPts.map(p => `${p.x},${p.y}`).join(' ');
+                    html += `<polygon points="${pts}" fill="${VOL_COLOR}" fill-opacity="0.1" stroke="${VOL_COLOR}" stroke-width="${strokeW}" stroke-dasharray="${6 * s} ${3 * s}" opacity="0.7"/>`;
+                } else if (previewPts.length === 2) {
+                    html += `<line x1="${previewPts[0].x}" y1="${previewPts[0].y}" x2="${previewPts[1].x}" y2="${previewPts[1].y}"
+                        stroke="${VOL_COLOR}" stroke-width="${strokeW}" stroke-dasharray="${6 * s} ${3 * s}" opacity="0.7"/>`;
+                }
+                for (const p of previewPts) {
+                    html += `<circle cx="${p.x}" cy="${p.y}" r="${pendingR}" fill="${VOL_COLOR}" stroke="#fff" stroke-width="${strokeW * 0.5}" opacity="0.8"/>`;
+                }
             }
 
             // In-progress utility polyline — use the active type color
@@ -2166,14 +2800,25 @@
             if (mode === 'utility' && m !== 'utility' && utilPolyPts.length >= 2) {
                 finishUtilityLine();
             }
+            if (mode === 'area' && m !== 'area' && areaPoints.length >= 3) {
+                finishArea();
+            }
+            if (mode === 'volume' && m !== 'volume' && volPoints.length >= 3) {
+                finishVolume();
+            }
             mode = m;
             tapPoint = null;
             if (m !== 'polyline') polyPoints = [];
             if (m !== 'utility') utilPolyPts = [];
+            if (m !== 'area') areaPoints = [];
+            if (m !== 'volume') volPoints = [];
             $('#btn-scale').classList.toggle('active', m === 'scale');
             $('#btn-measure').classList.toggle('active', m === 'measure');
             $('#btn-polyline').classList.toggle('active', m === 'polyline');
             $('#btn-utility').classList.toggle('active', m === 'utility');
+            $('#btn-count').classList.toggle('active', m === 'count');
+            $('#btn-area').classList.toggle('active', m === 'area');
+            $('#btn-volume').classList.toggle('active', m === 'volume');
             viewer.classList.toggle('crosshair', m !== 'none' || compareMode);
 
             if (m === 'scale') {
@@ -2184,6 +2829,12 @@
                 setStatus('Tap points along a path. Tap Finish to complete.');
             } else if (m === 'utility') {
                 setStatus('Tap points along the utility line. Tap Finish to complete.');
+            } else if (m === 'count') {
+                setStatus('Tap to place count markers. Total: ' + countPoints.length);
+            } else if (m === 'area') {
+                setStatus('Tap 3+ points to define an area. Double-tap or tap Finish to close.');
+            } else if (m === 'volume') {
+                setStatus('Tap 3+ points to define volume area. Double-tap or tap Finish to close.');
             } else {
                 setStatus('Use two fingers to pan/zoom. Set Scale then Measure.');
             }
@@ -2301,6 +2952,111 @@
             body.innerHTML = html;
         }
 
+        function updateCountList() {
+            const el = $('#count-list');
+            if (countPoints.length === 0) {
+                el.classList.remove('show');
+                return;
+            }
+            el.classList.add('show');
+            let html = `<div class="count-item" style="font-weight:600; color:#FF44FF;">
+                <span>Total Count: ${countPoints.length}</span>
+                <button onclick="window._clearCounts()" style="padding:4px 8px; font-size:11px; background:#633;">Clear All</button>
+            </div>`;
+            el.innerHTML = html;
+        }
+        window._clearCounts = () => {
+            countPoints = [];
+            savePageData();
+            rebuildSVG();
+            updateCountList();
+            if (countPoints.length === 0 && measurements.length === 0 && utilityLines.length === 0 && areas.length === 0) {
+                sideDisable('#btn-undo');
+            }
+        };
+
+        function updateAreaList() {
+            const el = $('#area-list');
+            if (areas.length === 0) {
+                el.classList.remove('show');
+                return;
+            }
+            el.classList.add('show');
+            let html = '';
+            let totalSqft = 0;
+            let totalSqyd = 0;
+            let totalCuyd = 0;
+
+            for (const a of areas) {
+                totalSqft += a.sqft;
+                totalSqyd += a.sqyd;
+                totalCuyd += a.cuyd;
+                const d = sqftToDisplay(a.sqft);
+                let detail = unitSystem === 'metric' ? d.primary : `${d.primary} / ${d.secondary}`;
+                if (a.cuyd > 0) detail += ` / ${formatVolumeVal(a.cuyd)}`;
+                html += `<div class="area-item">
+                    <span><span class="area-val">${detail}</span></span>
+                    <button onclick="window._deleteArea(${a.id})" style="padding:4px 8px; font-size:11px; background:#633;">X</button>
+                </div>`;
+            }
+            if (areas.length > 1) {
+                const td = sqftToDisplay(totalSqft);
+                let totalDetail = unitSystem === 'metric' ? td.primary : `${td.primary} / ${td.secondary}`;
+                if (totalCuyd > 0) totalDetail += ` / ${formatVolumeVal(totalCuyd)}`;
+                html += `<div class="area-item area-total-row">
+                    <span><strong>Total (${areas.length})</strong></span>
+                    <span class="area-val">${totalDetail}</span>
+                </div>`;
+            }
+            el.innerHTML = html;
+        }
+
+        window._deleteArea = (id) => {
+            areas = areas.filter(a => a.id !== id);
+            savePageData();
+            rebuildSVG();
+            updateAreaList();
+            if (countPoints.length === 0 && measurements.length === 0 && utilityLines.length === 0 && areas.length === 0 && volumes.length === 0) {
+                sideDisable('#btn-undo');
+            }
+        };
+
+        function updateVolumeList() {
+            const el = $('#volume-list');
+            if (volumes.length === 0) {
+                el.classList.remove('show');
+                return;
+            }
+            el.classList.add('show');
+            let html = '';
+            let totalCuyd = 0;
+
+            for (const v of volumes) {
+                totalCuyd += v.cuyd;
+                html += `<div class="vol-item">
+                    <span><span class="vol-val">${v.label}</span></span>
+                    <button onclick="window._deleteVol(${v.id})" style="padding:4px 8px; font-size:11px; background:#633;">X</button>
+                </div>`;
+            }
+            if (volumes.length > 1) {
+                html += `<div class="vol-item" style="font-weight:600; border-top:1px solid #555; padding-top:4px; margin-top:2px;">
+                    <span><strong>Total (${volumes.length})</strong></span>
+                    <span class="vol-val">${formatVolumeVal(totalCuyd)}</span>
+                </div>`;
+            }
+            el.innerHTML = html;
+        }
+
+        window._deleteVol = (id) => {
+            volumes = volumes.filter(v => v.id !== id);
+            savePageData();
+            rebuildSVG();
+            updateVolumeList();
+            if (countPoints.length === 0 && measurements.length === 0 && utilityLines.length === 0 && areas.length === 0 && volumes.length === 0) {
+                sideDisable('#btn-undo');
+            }
+        };
+
         window._deleteUtil = (id) => {
             utilityLines = utilityLines.filter(u => u.id !== id);
             savePageData();
@@ -2381,6 +3137,43 @@
         // Select all on focus for easy overwrite
         $('#page-input').addEventListener('focus', e => e.target.select());
 
+        // ── Unit System Dropdown ──
+        $('#unit-system').addEventListener('change', e => {
+            unitSystem = e.target.value;
+            // Also recalc labels for all pages in pageAnnotations
+            recalcAllLabels();
+            // Recalc other pages too
+            const curPage = currentPage;
+            for (const [pg, data] of Object.entries(pageAnnotations)) {
+                if (parseInt(pg) === curPage) continue;
+                if (data.measurements) {
+                    for (const m of data.measurements) {
+                        if (m.type === 'polyline') {
+                            let total = 0;
+                            for (let i = 1; i < m.points.length; i++) total += ptsDist(m.points[i - 1], m.points[i]);
+                            m.label = formatDist(total / scalePtPerUnit, scaleUnit);
+                        } else {
+                            const dist = ptsDist({ x: m.x1, y: m.y1 }, { x: m.x2, y: m.y2 });
+                            m.label = formatDist(dist / scalePtPerUnit, scaleUnit);
+                        }
+                    }
+                }
+                if (data.utilityLines) {
+                    for (const u of data.utilityLines) {
+                        let total = 0;
+                        for (let i = 1; i < u.points.length; i++) total += ptsDist(u.points[i - 1], u.points[i]);
+                        u.label = formatDist(total / scalePtPerUnit, scaleUnit);
+                    }
+                }
+                if (data.areas) {
+                    for (const a of data.areas) a.label = formatAreaVal(a.sqft);
+                }
+                if (data.volumes) {
+                    for (const v of data.volumes) v.label = formatVolumeVal(v.cuyd);
+                }
+            }
+        });
+
         $('#btn-scale').addEventListener('click', () => {
             if (mode === 'scale') {
                 setMode('none');
@@ -2413,6 +3206,39 @@
             }
         });
 
+        $('#btn-count').addEventListener('click', () => {
+            if ($('#btn-count').classList.contains('is-disabled')) return;
+            setMode(mode === 'count' ? 'none' : 'count');
+        });
+
+        $('#btn-area').addEventListener('click', () => {
+            if ($('#btn-area').classList.contains('is-disabled')) return;
+            if (!scalePtPerUnit) {
+                setStatus('Set the scale first.');
+                return;
+            }
+            if (mode === 'area') {
+                if (areaPoints.length >= 3) finishArea();
+                setMode('none');
+            } else {
+                setMode('area');
+            }
+        });
+
+        $('#btn-volume').addEventListener('click', () => {
+            if ($('#btn-volume').classList.contains('is-disabled')) return;
+            if (!scalePtPerUnit) {
+                setStatus('Set the scale first.');
+                return;
+            }
+            if (mode === 'volume') {
+                if (volPoints.length >= 3) finishVolume();
+                setMode('none');
+            } else {
+                setMode('volume');
+            }
+        });
+
         $('#btn-utility').addEventListener('click', () => {
             if ($('#btn-utility').classList.contains('is-disabled')) return;
             if (mode === 'utility') {
@@ -2430,6 +3256,9 @@
             const box = $('#scale-modal-box');
             modal.style.display = 'block';
             $('#scale-val').value = '';
+            // Default scale unit to match current unit system
+            if (unitSystem === 'metric') $('#scale-unit').value = 'm';
+            else $('#scale-unit').value = 'ft';
             box.style.left = Math.max(0, window.innerWidth - 360) + 'px';
             box.style.top = '60px';
             setTimeout(() => $('#scale-val').focus(), 100);
@@ -2479,6 +3308,8 @@
 
         makeDraggable($('#scale-drag-handle'), $('#scale-modal-box'));
         makeDraggable($('#utility-drag-handle'), $('#utility-modal-box'));
+        makeDraggable($('#area-drag-handle'), $('#area-modal-box'));
+        makeDraggable($('#volume-drag-handle'), $('#volume-modal-box'));
 
         // From tapped calibration points
         $('#scale-confirm').addEventListener('click', () => {
@@ -2493,6 +3324,8 @@
             setStatus(`Scale set. Tap two points to measure.`);
             sideEnable('#btn-measure');
             sideEnable('#btn-polyline');
+            sideEnable('#btn-area');
+            sideEnable('#btn-volume');
             $('#btn-clear-all').disabled = false;
             updateScaleDisplay();
         });
@@ -2511,32 +3344,49 @@
 
         $('#btn-undo').addEventListener('click', () => {
             if ($('#btn-undo').classList.contains('is-disabled')) return;
-            // Undo the most recent item (measurement or utility)
+            // Undo the most recent item (measurement, utility, count, area, or volume)
             const lastMeas = measurements.length > 0 ? measurements[measurements.length - 1] : null;
             const lastUtil = utilityLines.length > 0 ? utilityLines[utilityLines.length - 1] : null;
+            const lastCount = countPoints.length > 0 ? countPoints[countPoints.length - 1] : null;
+            const lastArea = areas.length > 0 ? areas[areas.length - 1] : null;
+            const lastVol = volumes.length > 0 ? volumes[volumes.length - 1] : null;
 
-            if (lastUtil && (!lastMeas || lastUtil.id > lastMeas.id)) {
-                utilityLines.pop();
-                updateUtilityList();
-            } else if (lastMeas) {
-                measurements.pop();
-                updateMeasurementsList();
+            // Find the item with the highest id (most recent)
+            const candidates = [
+                lastMeas && { type: 'meas', id: lastMeas.id },
+                lastUtil && { type: 'util', id: lastUtil.id },
+                lastCount && { type: 'count', id: lastCount.id },
+                lastArea && { type: 'area', id: lastArea.id },
+                lastVol && { type: 'vol', id: lastVol.id }
+            ].filter(Boolean);
+
+            if (candidates.length > 0) {
+                candidates.sort((a, b) => b.id - a.id);
+                const latest = candidates[0];
+                if (latest.type === 'util') { utilityLines.pop(); updateUtilityList(); }
+                else if (latest.type === 'meas') { measurements.pop(); updateMeasurementsList(); }
+                else if (latest.type === 'count') { countPoints.pop(); updateCountList(); }
+                else if (latest.type === 'area') { areas.pop(); updateAreaList(); }
+                else if (latest.type === 'vol') { volumes.pop(); updateVolumeList(); }
             }
             savePageData();
             rebuildSVG();
-            if (measurements.length === 0 && utilityLines.length === 0) {
+            if (measurements.length === 0 && utilityLines.length === 0 && countPoints.length === 0 && areas.length === 0 && volumes.length === 0) {
                 sideDisable('#btn-undo');
             }
         });
 
-        $('#btn-clear-all').addEventListener('click', () => {
-            if (measurements.length === 0 && utilityLines.length === 0 && !scalePtPerUnit) return;
-            if (!confirm('Clear all measurements, utilities, and scale?')) return;
+        function doClearAll() {
             measurements = [];
             utilityLines = [];
+            countPoints = [];
+            areas = [];
+            volumes = [];
             pageAnnotations = {};
             polyPoints = [];
             utilPolyPts = [];
+            areaPoints = [];
+            volPoints = [];
             tapPoint = null;
             cursorPt = null;
             scalePtPerUnit = null;
@@ -2544,13 +3394,33 @@
             updateScaleDisplay();
             sideDisable('#btn-measure');
             sideDisable('#btn-polyline');
+            sideDisable('#btn-count');
+            sideDisable('#btn-area');
+            sideDisable('#btn-volume');
             sideDisable('#btn-undo');
             $('#btn-clear-all').disabled = true;
             $('#measurements').classList.remove('show');
             $('#utility-list').classList.remove('show');
+            $('#count-list').classList.remove('show');
+            $('#area-list').classList.remove('show');
+            $('#volume-list').classList.remove('show');
             rebuildSVG();
             setMode('none');
             setStatus('Cleared. Set scale to start measuring.');
+        }
+
+        $('#btn-clear-all').addEventListener('click', () => {
+            if (measurements.length === 0 && utilityLines.length === 0 && countPoints.length === 0 && areas.length === 0 && volumes.length === 0 && !scalePtPerUnit) return;
+            // Show confirm modal instead of native confirm() which can fail on touch devices
+            $('#confirm-modal').style.display = 'flex';
+        });
+
+        $('#confirm-ok').addEventListener('click', () => {
+            $('#confirm-modal').style.display = 'none';
+            doClearAll();
+        });
+        $('#confirm-cancel').addEventListener('click', () => {
+            $('#confirm-modal').style.display = 'none';
         });
 
         $('#btn-help').addEventListener('click', () => {
@@ -2602,9 +3472,15 @@
             $('#empty').style.display = '';
             $('#measurements').classList.remove('show');
             $('#utility-list').classList.remove('show');
+            $('#count-list').classList.remove('show');
+            $('#area-list').classList.remove('show');
+            $('#volume-list').classList.remove('show');
             $('#btn-close').style.display = 'none';
             sideDisable('#btn-measure');
             sideDisable('#btn-polyline');
+            sideDisable('#btn-count');
+            sideDisable('#btn-area');
+            sideDisable('#btn-volume');
             sideDisable('#btn-undo');
             $('#btn-prev').disabled = true;
             $('#btn-next').disabled = true;
@@ -3250,6 +4126,82 @@
                     const typeName = u.utilType.charAt(0).toUpperCase() + u.utilType.slice(1);
                     drawLabel(`${typeName}: ${u.label}`, last.x, last.y - 20, color, 14);
                 }
+            }
+
+            // --- Count markers ---
+            for (const c of countPoints) {
+                const r = 8;
+                expCtx.fillStyle = countColor;
+                expCtx.beginPath();
+                expCtx.arc(c.x, c.y, r, 0, Math.PI * 2);
+                expCtx.fill();
+                expCtx.strokeStyle = '#fff';
+                expCtx.lineWidth = 1.5;
+                expCtx.stroke();
+                drawLabel(String(c.num), c.x, c.y + 4, '#fff', 11);
+            }
+
+            // --- Area polygons ---
+            for (const a of areas) {
+                if (a.points.length < 3) continue;
+                expCtx.fillStyle = AREA_COLOR;
+                expCtx.globalAlpha = 0.15;
+                expCtx.beginPath();
+                expCtx.moveTo(a.points[0].x, a.points[0].y);
+                for (let i = 1; i < a.points.length; i++) {
+                    expCtx.lineTo(a.points[i].x, a.points[i].y);
+                }
+                expCtx.closePath();
+                expCtx.fill();
+                expCtx.globalAlpha = 1;
+                expCtx.strokeStyle = AREA_COLOR;
+                expCtx.lineWidth = 2;
+                expCtx.setLineDash([6, 3]);
+                expCtx.stroke();
+                expCtx.setLineDash([]);
+                // Dots
+                for (const p of a.points) {
+                    expCtx.fillStyle = AREA_COLOR;
+                    expCtx.beginPath();
+                    expCtx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                    expCtx.fill();
+                }
+                // Label at centroid
+                const cx = a.points.reduce((s, p) => s + p.x, 0) / a.points.length;
+                const cy = a.points.reduce((s, p) => s + p.y, 0) / a.points.length;
+                drawLabel(a.label, cx, cy, AREA_COLOR, 14);
+                if (a.cuyd > 0) {
+                    drawLabel(formatVolumeVal(a.cuyd), cx, cy + 16, '#FFD700', 12);
+                }
+            }
+
+            // --- Volume polygons ---
+            for (const v of volumes) {
+                if (v.points.length < 3) continue;
+                expCtx.fillStyle = VOL_COLOR;
+                expCtx.globalAlpha = 0.2;
+                expCtx.beginPath();
+                expCtx.moveTo(v.points[0].x, v.points[0].y);
+                for (let i = 1; i < v.points.length; i++) {
+                    expCtx.lineTo(v.points[i].x, v.points[i].y);
+                }
+                expCtx.closePath();
+                expCtx.fill();
+                expCtx.globalAlpha = 1;
+                expCtx.strokeStyle = VOL_COLOR;
+                expCtx.lineWidth = 2.5;
+                expCtx.setLineDash([6, 3]);
+                expCtx.stroke();
+                expCtx.setLineDash([]);
+                for (const p of v.points) {
+                    expCtx.fillStyle = VOL_COLOR;
+                    expCtx.beginPath();
+                    expCtx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                    expCtx.fill();
+                }
+                const cx = v.points.reduce((s, p) => s + p.x, 0) / v.points.length;
+                const cy = v.points.reduce((s, p) => s + p.y, 0) / v.points.length;
+                drawLabel(v.label, cx, cy, VOL_COLOR, 15);
             }
 
             expCtx.restore();
