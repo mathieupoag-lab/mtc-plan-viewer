@@ -585,17 +585,10 @@
             <svg viewBox="0 0 24 24"><path d="M13,23H1V1H13V23M15,1V23H23V1H15M3,3V5H11V3H3M3,7V9H11V7H3M3,11V13H11V11H3M17,3V5H21V3H17M17,7V9H21V7H17M17,11V13H21V11H17Z"/></svg>
             Compare
         </button>
-        <button class="side-btn" id="btn-show-snaps" title="Show/hide snap points">
-            <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/></svg>
-            Snaps
-        </button>
+
         <button class="side-btn" id="btn-help">
             <svg viewBox="0 0 24 24"><path d="M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z"/></svg>
             Help
-        </button>
-        <button class="side-btn" id="btn-vendors">
-            <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-            Vendors
         </button>
         <span style="flex:1"></span>
         <button class="side-btn is-disabled" id="btn-export" data-fixed="true">
@@ -899,7 +892,6 @@
                     <li><strong>Compare</strong> — overlay two PDF pages to spot differences</li>
                     <li><strong>Export</strong> — save your measurements as an image</li>
                     <li><strong>Undo</strong> — remove the last measurement or utility line</li>
-                    <li><strong>Snaps</strong> — toggle snap points extracted from PDF line geometry (endpoints and intersections)</li>
                 </ul>
 
                 <h4>Add to Home Screen</h4>
@@ -1011,7 +1003,7 @@
         let idCounter = 0;
 
         // Snap-to-vector: extracted endpoints from PDF paths
-        let snapPoints = [];      // [{x, y}] in PDF pts
+        let snapPoints = [];      // [{x, y}] in viewport coords after PDF transform
         let snapSegments = [];    // [{p1:{x,y}, p2:{x,y}}] for snap-to-line
         const SNAP_RADIUS_PX = 12; // screen pixels to snap within
         let showSnapPoints = false; // debug: render snap dots on plan
@@ -1219,6 +1211,27 @@
             const MAX_SEGMENTS = 20000; // safety cap for complex plans
             let curX = 0, curY = 0;
 
+            function addSegment(p1, p2) {
+                const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                if (Math.hypot(dx, dy) >= MIN_SEG_LEN) {
+                    segments.push({ p1, p2 });
+                }
+            }
+
+            function sampleCubicBezier(p0, c1, c2, p3) {
+                const steps = 4;
+                let prev = p0;
+                for (let i = 1; i <= steps; i++) {
+                    const t = i / steps;
+                    const u = 1 - t;
+                    const x = u * u * u * p0.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * p3.x;
+                    const y = u * u * u * p0.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * p3.y;
+                    const next = { x, y };
+                    addSegment(prev, next);
+                    prev = next;
+                }
+            }
+
             function processOp(op, subArgs, ai) {
                 const MT = pdfjsLib.OPS.moveTo;
                 const LT = pdfjsLib.OPS.lineTo;
@@ -1233,20 +1246,27 @@
                     return ai + 2;
                 } else if (op === LT || op === 14) {
                     const nx = subArgs[ai], ny = subArgs[ai + 1];
-                    const p1 = toViewPt(curX, curY);
-                    const p2 = toViewPt(nx, ny);
-                    const dx = p2.x - p1.x, dy = p2.y - p1.y;
-                    if (Math.sqrt(dx * dx + dy * dy) >= MIN_SEG_LEN) {
-                        segments.push({ p1, p2 });
-                    }
+                    addSegment(toViewPt(curX, curY), toViewPt(nx, ny));
                     curX = nx; curY = ny;
                     return ai + 2;
                 } else if (op === CT || op === 15) {
-                    // Skip curves (text glyphs, arcs) — just advance cursor to endpoint
+                    const p0 = toViewPt(curX, curY);
+                    const c1 = toViewPt(subArgs[ai], subArgs[ai + 1]);
+                    const c2 = toViewPt(subArgs[ai + 2], subArgs[ai + 3]);
+                    const p3 = toViewPt(subArgs[ai + 4], subArgs[ai + 5]);
+                    const bboxW = Math.max(p0.x, c1.x, c2.x, p3.x) - Math.min(p0.x, c1.x, c2.x, p3.x);
+                    const bboxH = Math.max(p0.y, c1.y, c2.y, p3.y) - Math.min(p0.y, c1.y, c2.y, p3.y);
+                    if (Math.hypot(bboxW, bboxH) > MIN_SEG_LEN * 2) {
+                        sampleCubicBezier(p0, c1, c2, p3);
+                    } else {
+                        addSegment(p0, p3);
+                    }
                     curX = subArgs[ai + 4]; curY = subArgs[ai + 5];
                     return ai + 6;
                 } else if (op === CT2 || op === 16 || op === CT3 || op === 17) {
-                    curX = subArgs[ai + 2]; curY = subArgs[ai + 3];
+                    const nx = subArgs[ai + 2], ny = subArgs[ai + 3];
+                    addSegment(toViewPt(curX, curY), toViewPt(nx, ny));
+                    curX = nx; curY = ny;
                     return ai + 4;
                 } else if (op === RECT || op === 19) {
                     const rx = subArgs[ai], ry = subArgs[ai + 1], rw = subArgs[ai + 2], rh = subArgs[ai + 3];
@@ -3579,9 +3599,6 @@
         $('#btn-help').addEventListener('click', () => {
             $('#help-overlay').classList.add('show');
         });
-        $('#btn-vendors').addEventListener('click', () => {
-            window.location.href = 'estimate-vendors.html';
-        });
         $('#help-close').addEventListener('click', () => {
             $('#help-overlay').classList.remove('show');
         });
@@ -3595,14 +3612,7 @@
             $('#legend-toggle').textContent = body.classList.contains('show') ? '▾ Legend' : '▸ Legend';
         });
 
-        $('#btn-show-snaps').addEventListener('click', () => {
-            showSnapPoints = !showSnapPoints;
-            $('#btn-show-snaps').classList.toggle('active', showSnapPoints);
-            rebuildSVG();
-            setStatus(showSnapPoints
-                ? `Showing ${snapPoints.length} snap points (green dots)`
-                : 'Snap points hidden');
-        });
+
 
         $('#btn-close').addEventListener('click', () => {
             if (!confirm('Close the current file? All measurements will be lost.')) return;
