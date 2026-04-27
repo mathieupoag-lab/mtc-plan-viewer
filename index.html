@@ -43,29 +43,37 @@
             padding: 6px;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            width: 88px;
+            width: 148px;
             z-index: 2;
+        }
+        #sidebar-primary,
+        #sidebar-tools,
+        #sidebar-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 5px;
         }
         .side-btn {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 3px;
-            padding: 10px 6px;
+            gap: 2px;
+            padding: 6px 4px;
             width: 100%;
-            min-height: 58px;
+            min-height: 48px;
             background: linear-gradient(to bottom, #555, #3a3a3a);
             border: 1px solid #555;
             border-bottom: 2px solid #222;
-            border-radius: 8px;
+            border-radius: 7px;
             color: #ddd;
-            font-size: 11px;
+            font-size: 10px;
+            line-height: 1.05;
             cursor: pointer;
-            white-space: nowrap;
+            white-space: normal;
             box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
             transition: all 0.1s ease;
             box-sizing: border-box;
@@ -85,12 +93,13 @@
             border-color: #cc6600;
             box-shadow: 0 2px 6px rgba(255,136,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
         }
-        .side-btn svg { width: 22px; height: 22px; fill: currentColor; }
+        .side-btn svg { width: 19px; height: 19px; fill: currentColor; flex-shrink: 0; }
         .side-btn-wrap {
             position: relative;
             cursor: grab;
             user-select: none;
             -webkit-user-select: none;
+            min-width: 0;
         }
         .side-btn-wrap:active { cursor: grabbing; }
         .side-btn-wrap.dragging { opacity: 0.3; }
@@ -390,7 +399,6 @@
 
         /* ── Legend ── */
         #legend {
-            margin-top: auto;
             padding: 6px;
             border-top: 1px solid #444;
             font-size: 10px;
@@ -523,6 +531,18 @@
             color: #ddd;
             font-family: monospace;
         }
+        #highlight-cursor {
+            display: none;
+            position: fixed;
+            width: var(--marker-size, 18px);
+            height: var(--marker-size, 18px);
+            border-radius: 50%;
+            background: rgba(255, 235, 0, var(--marker-opacity, 0.5));
+            border: 1px solid rgba(120, 90, 0, 0.8);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            z-index: 500;
+        }
     </style>
 </head>
 <body>
@@ -549,52 +569,68 @@
 
     <!-- Left Sidebar -->
     <aside id="sidebar">
-        <button class="side-btn" id="btn-scale" data-fixed="true">
-            <svg viewBox="0 0 24 24"><path d="M1.39,18.36L3.16,16.6L4.58,18L5.64,16.95L4.22,15.54L5.64,14.12L8.11,16.6L9.17,15.54L6.7,13.06L8.11,11.65L9.53,13.06L10.59,12L9.17,10.59L10.59,9.17L13.06,11.65L14.12,10.59L11.65,8.11L13.06,6.7L14.48,8.11L15.54,7.05L14.12,5.64L15.54,4.22L18,6.7L19.07,5.64L16.6,3.16L18.36,1.39L22.61,5.64L5.64,22.61L1.39,18.36Z"/></svg>
-            Set Scale
-        </button>
-        <button class="side-btn is-disabled" id="btn-undo" data-fixed="true">
-            <svg viewBox="0 0 24 24"><path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z"/></svg>
-            Undo
-        </button>
-        <button class="side-btn is-disabled" id="btn-measure">
-            <svg viewBox="0 0 24 24"><path d="M7,2H17A2,2 0 0,1 19,4V20A2,2 0 0,1 17,22H7A2,2 0 0,1 5,20V4A2,2 0 0,1 7,2M7,4V8H9V4H7M7,10V12H9V10H7M7,14V16H9V14H7M7,18V20H9V18H7Z"/></svg>
-            Measure
-        </button>
-        <button class="side-btn is-disabled" id="btn-polyline">
-            <svg viewBox="0 0 24 24"><path d="M2,3V9L6,6.7V17.3L2,15V21H8V17.3L12,19.6V17.3L16,19.6V21H22V15L18,17.3V6.7L22,9V3H16V6.7L12,4.4V6.7L8,4.4V3H2Z"/></svg>
-            Polyline
-        </button>
-        <button class="side-btn is-disabled" id="btn-count">
-            <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,7H13V13H11V7Z"/></svg>
-            Count
-        </button>
-        <button class="side-btn is-disabled" id="btn-area">
-            <svg viewBox="0 0 24 24"><path d="M2,4H4V2H10V4A10,10 0 0,1 20,14H22V20H20V22H14V20A10,10 0 0,1 4,10H2V4M14,4V2H20V8H18V4H14M4,14H2V20H8V18H4V14Z"/></svg>
-            Area
-        </button>
-        <button class="side-btn is-disabled" id="btn-volume">
-            <svg viewBox="0 0 24 24"><path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L5,8.09V15.91L12,19.85L19,15.91V8.09L12,4.15Z"/></svg>
-            Volume
-        </button>
-        <button class="side-btn is-disabled" id="btn-utility">
-            <svg viewBox="0 0 24 24"><path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M11,7H13V13H11V7M11,15H13V17H11V15Z"/></svg>
-            Utility
-        </button>
-        <button class="side-btn is-disabled" id="btn-compare">
-            <svg viewBox="0 0 24 24"><path d="M13,23H1V1H13V23M15,1V23H23V1H15M3,3V5H11V3H3M3,7V9H11V7H3M3,11V13H11V11H3M17,3V5H21V3H17M17,7V9H21V7H17M17,11V13H21V11H17Z"/></svg>
-            Compare
-        </button>
-
-        <button class="side-btn" id="btn-help">
-            <svg viewBox="0 0 24 24"><path d="M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z"/></svg>
-            Help
-        </button>
-        <span style="flex:1"></span>
-        <button class="side-btn is-disabled" id="btn-export" data-fixed="true">
-            <svg viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></svg>
-            Export
-        </button>
+        <div id="sidebar-primary">
+            <button class="side-btn" id="btn-scale" data-fixed="true">
+                <svg viewBox="0 0 24 24"><path d="M1.39,18.36L3.16,16.6L4.58,18L5.64,16.95L4.22,15.54L5.64,14.12L8.11,16.6L9.17,15.54L6.7,13.06L8.11,11.65L9.53,13.06L10.59,12L9.17,10.59L10.59,9.17L13.06,11.65L14.12,10.59L11.65,8.11L13.06,6.7L14.48,8.11L15.54,7.05L14.12,5.64L15.54,4.22L18,6.7L19.07,5.64L16.6,3.16L18.36,1.39L22.61,5.64L5.64,22.61L1.39,18.36Z"/></svg>
+                Set Scale
+            </button>
+            <button class="side-btn is-disabled" id="btn-undo" data-fixed="true">
+                <svg viewBox="0 0 24 24"><path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z"/></svg>
+                Undo
+            </button>
+        </div>
+        <div id="sidebar-tools">
+            <button class="side-btn is-disabled" id="btn-measure">
+                <svg viewBox="0 0 24 24"><path d="M7,2H17A2,2 0 0,1 19,4V20A2,2 0 0,1 17,22H7A2,2 0 0,1 5,20V4A2,2 0 0,1 7,2M7,4V8H9V4H7M7,10V12H9V10H7M7,14V16H9V14H7M7,18V20H9V18H7Z"/></svg>
+                Measure
+            </button>
+            <button class="side-btn is-disabled" id="btn-polyline">
+                <svg viewBox="0 0 24 24"><path d="M2,3V9L6,6.7V17.3L2,15V21H8V17.3L12,19.6V17.3L16,19.6V21H22V15L18,17.3V6.7L22,9V3H16V6.7L12,4.4V6.7L8,4.4V3H2Z"/></svg>
+                Polyline
+            </button>
+            <button class="side-btn is-disabled" id="btn-count">
+                <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,7H13V13H11V7Z"/></svg>
+                Count
+            </button>
+            <button class="side-btn is-disabled" id="btn-area">
+                <svg viewBox="0 0 24 24"><path d="M2,4H4V2H10V4A10,10 0 0,1 20,14H22V20H20V22H14V20A10,10 0 0,1 4,10H2V4M14,4V2H20V8H18V4H14M4,14H2V20H8V18H4V14Z"/></svg>
+                Area
+            </button>
+            <button class="side-btn is-disabled" id="btn-volume">
+                <svg viewBox="0 0 24 24"><path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L5,8.09V15.91L12,19.85L19,15.91V8.09L12,4.15Z"/></svg>
+                Volume
+            </button>
+            <button class="side-btn is-disabled" id="btn-utility">
+                <svg viewBox="0 0 24 24"><path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M11,7H13V13H11V7M11,15H13V17H11V15Z"/></svg>
+                Utility
+            </button>
+            <button class="side-btn is-disabled" id="btn-highlight">
+                <svg viewBox="0 0 24 24"><path d="M5,16L3,21L8,19L19.5,7.5L16.5,4.5L5,16M18,3L21,6L19.7,7.3L16.7,4.3L18,3M6.2,16.7L16.5,6.4L17.6,7.5L7.3,17.8L5.7,18.3L6.2,16.7Z"/></svg>
+                Highlight
+            </button>
+            <button class="side-btn is-disabled" id="btn-note">
+                <svg viewBox="0 0 24 24"><path d="M4,4H20V16H7L4,19V4M6,6V14.2L6.2,14H18V6H6M8,8H16V9.5H8V8M8,11H14V12.5H8V11Z"/></svg>
+                Note
+            </button>
+            <button class="side-btn is-disabled" id="btn-cloud-note">
+                <svg viewBox="0 0 24 24"><path d="M7,18C4.8,18 3,16.2 3,14C3,12.3 4.1,10.8 5.6,10.3C6.2,7.8 8.4,6 11,6C13,6 14.8,7.1 15.8,8.8C18.7,8.9 21,11.2 21,14C21,16.2 19.2,18 17,18H7M7,16H17C18.1,16 19,15.1 19,14C19,12.3 17.7,10.9 16,10.8L14.7,10.7L14.1,9.6C13.5,8.6 12.4,8 11,8C9.3,8 7.9,9.1 7.5,10.8L7.2,12L6,12.3C5.4,12.5 5,13.2 5,14C5,15.1 5.9,16 7,16Z"/></svg>
+                Cloud
+            </button>
+            <button class="side-btn is-disabled" id="btn-compare">
+                <svg viewBox="0 0 24 24"><path d="M13,23H1V1H13V23M15,1V23H23V1H15M3,3V5H11V3H3M3,7V9H11V7H3M3,11V13H11V11H3M17,3V5H21V3H17M17,7V9H21V7H17M17,11V13H21V11H17Z"/></svg>
+                Compare
+            </button>
+        </div>
+        <div id="sidebar-actions">
+            <button class="side-btn" id="btn-help">
+                <svg viewBox="0 0 24 24"><path d="M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z"/></svg>
+                Help
+            </button>
+            <button class="side-btn is-disabled" id="btn-export" data-fixed="true">
+                <svg viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></svg>
+                Export
+            </button>
+        </div>
         <div id="legend">
             <button id="legend-toggle">▸ Legend</button>
             <div id="legend-body">
@@ -719,6 +755,74 @@
                 <button id="export-go" class="active" style="flex:1;">Export</button>
             </div>
             <p id="export-status" style="font-size:12px; color:#FF8800; margin-top:8px;"></p>
+        </div>
+    </div>
+
+    <!-- Highlight settings -->
+    <div id="highlight-modal" style="display:none">
+        <div class="modal-box" id="highlight-modal-box" style="max-width:280px;">
+            <div class="modal-drag-handle" id="highlight-drag-handle">
+                <h3>Highlighter</h3>
+                <button class="modal-close" id="highlight-close">&times;</button>
+            </div>
+            <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+                <label style="font-size:12px; color:#aaa; white-space:nowrap;">Marker Size</label>
+                <select id="highlight-size" style="flex:1; padding:7px; background:#1a1a1a; color:#fff; border:1px solid #555; border-radius:4px; font-size:13px;">
+                    <option value="8">Small</option>
+                    <option value="16" selected>Medium</option>
+                    <option value="28">Large</option>
+                    <option value="44">XL</option>
+                </select>
+            </div>
+            <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+                <label style="font-size:12px; color:#aaa; white-space:nowrap;">Opacity</label>
+                <input type="range" id="highlight-opacity" min="0.1" max="0.8" step="0.05" value="0.5"
+                    style="flex:1; accent-color:#FFEB00;">
+                <span id="highlight-opacity-val" style="font-size:12px; color:#aaa; min-width:36px;">50%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note callout text entry -->
+    <div id="note-modal" style="display:none">
+        <div class="modal-box" id="note-modal-box" style="max-width:320px;">
+            <div class="modal-drag-handle" id="note-drag-handle">
+                <h3>Note</h3>
+                <button class="modal-close" id="note-close">&times;</button>
+            </div>
+            <textarea id="note-text" rows="4" placeholder="Enter note text"
+                style="width:100%; resize:vertical; min-height:80px; padding:10px; background:#1a1a1a; color:#fff; border:1px solid #555; border-radius:6px; font-size:14px; font-family:inherit;"></textarea>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
+                <label style="font-size:12px; color:#aaa;">Arrow/Border
+                    <input type="color" id="note-color" value="#FFEB00" style="width:100%; height:34px; margin-top:4px; background:#1a1a1a; border:1px solid #555; border-radius:4px;">
+                </label>
+                <label style="font-size:12px; color:#aaa;">Text
+                    <input type="color" id="note-text-color" value="#111111" style="width:100%; height:34px; margin-top:4px; background:#1a1a1a; border:1px solid #555; border-radius:4px;">
+                </label>
+                <label style="font-size:12px; color:#aaa;">Background
+                    <input type="color" id="note-bg-color" value="#FFFFD2" style="width:100%; height:34px; margin-top:4px; background:#1a1a1a; border:1px solid #555; border-radius:4px;">
+                </label>
+                <label style="font-size:12px; color:#aaa;">Text Size
+                    <select id="note-font-size" style="width:100%; margin-top:4px; padding:7px; background:#1a1a1a; color:#fff; border:1px solid #555; border-radius:4px;">
+                        <option value="10">Small</option>
+                        <option value="12" selected>Medium</option>
+                        <option value="16">Large</option>
+                        <option value="20">XL</option>
+                    </select>
+                </label>
+                <label style="font-size:12px; color:#aaa;">Box Width
+                    <input type="number" id="note-box-w" value="160" min="70" max="420" step="10"
+                        style="width:100%; margin-top:4px; padding:7px; background:#1a1a1a; color:#fff; border:1px solid #555; border-radius:4px;">
+                </label>
+                <label style="font-size:12px; color:#aaa;">Box Height
+                    <input type="number" id="note-box-h" value="70" min="36" max="260" step="10"
+                        style="width:100%; margin-top:4px; padding:7px; background:#1a1a1a; color:#fff; border:1px solid #555; border-radius:4px;">
+                </label>
+            </div>
+            <div class="modal-row" style="margin-top:10px; margin-bottom:0;">
+                <button id="note-cancel">Cancel</button>
+                <button id="note-ok" class="active" style="flex:1;">Place Note</button>
+            </div>
         </div>
     </div>
 
@@ -916,6 +1020,7 @@
         <button class="ctx-item" id="ctx-add-point">Add Point Here</button>
         <button class="ctx-item danger" id="ctx-remove-point">Remove Point</button>
     </div>
+    <div id="highlight-cursor"></div>
 
     <script type="module">
         window.onerror = (msg, src, line, col, err) => {
@@ -965,6 +1070,8 @@
         let measurements = [];    // [{x1,y1,x2,y2,label,id}] in PDF pts
         let polyPoints = [];      // polyline: accumulated points [{x,y}]
         let utilityLines = [];    // [{points:[], utilType, color, id}]
+        let highlights = [];      // [{points:[], size, opacity, id}] in PDF pts
+        let noteCallouts = [];    // [{arrow:{x,y}, anchor:{x,y}, x,y,w,h,text,id}] in PDF pts
         let pageAnnotations = {}; // {pageNum: {measurements:[], utilityLines:[]}} — per-page storage
         let utilPolyPts = [];     // in-progress utility polyline
         let activeUtilType = null; // selected utility type while drawing
@@ -973,6 +1080,26 @@
         let pendingUtilLine = null; // stash points while label popup is open
         let _lastPolyTapTime = 0;
         let _lastUtilTapTime = 0;
+        const HIGHLIGHT_COLOR = '#FFEB00';
+        let highlightSize = 16;
+        let highlightOpacity = 0.5;
+        let highlightDraft = null;
+        let highlightPointerId = null;
+        let noteArrowPt = null;
+        let noteDraft = null;
+        let editingNoteIdx = null;
+        let cloudStart = null;
+        let cloudDraft = null;
+        let cloudPointerId = null;
+        const DEFAULT_NOTE_COLOR = '#FFEB00';
+        const DEFAULT_NOTE_TEXT_COLOR = '#111111';
+        const DEFAULT_NOTE_BG_COLOR = '#FFFFD2';
+        let noteColor = DEFAULT_NOTE_COLOR;
+        let noteTextColor = DEFAULT_NOTE_TEXT_COLOR;
+        let noteBgColor = DEFAULT_NOTE_BG_COLOR;
+        let noteFontSize = 12;
+        let noteBoxW = 160;
+        let noteBoxH = 70;
 
         // Count tool
         let countPoints = [];     // [{x, y, id, num}] in PDF pts
@@ -1025,6 +1152,8 @@
             pageAnnotations[currentPage] = {
                 measurements: [...measurements],
                 utilityLines: [...utilityLines],
+                highlights: [...highlights],
+                noteCallouts: [...noteCallouts],
                 countPoints: [...countPoints],
                 areas: [...areas],
                 volumes: [...volumes],
@@ -1038,6 +1167,8 @@
             if (data) {
                 measurements = [...data.measurements];
                 utilityLines = [...data.utilityLines];
+                highlights = data.highlights ? [...data.highlights] : [];
+                noteCallouts = data.noteCallouts ? [...data.noteCallouts] : [];
                 countPoints = data.countPoints ? [...data.countPoints] : [];
                 areas = data.areas ? [...data.areas] : [];
                 volumes = data.volumes ? [...data.volumes] : [];
@@ -1048,6 +1179,8 @@
             } else {
                 measurements = [];
                 utilityLines = [];
+                highlights = [];
+                noteCallouts = [];
                 countPoints = [];
                 areas = [];
                 volumes = [];
@@ -1072,6 +1205,14 @@
             tapPoint = null;
             polyPoints = [];
             utilPolyPts = [];
+            highlightDraft = null;
+            highlightPointerId = null;
+            noteArrowPt = null;
+            noteDraft = null;
+            editingNoteIdx = null;
+            cloudStart = null;
+            cloudDraft = null;
+            cloudPointerId = null;
             areaPoints = [];
             volPoints = [];
             cursorPt = null;
@@ -1093,6 +1234,24 @@
         const pdfCanvas = $('#pdf-canvas');
         const ctx = pdfCanvas.getContext('2d');
         const svgEl = $('#svg-overlay');
+        const highlightCursor = $('#highlight-cursor');
+
+        function syncHighlightCursor() {
+            highlightCursor.style.setProperty('--marker-size', `${highlightSize}px`);
+            highlightCursor.style.setProperty('--marker-opacity', highlightOpacity);
+        }
+
+        function showHighlightCursor(clientX, clientY) {
+            if (mode !== 'highlight') return;
+            highlightCursor.style.left = clientX + 'px';
+            highlightCursor.style.top = clientY + 'px';
+            highlightCursor.style.display = 'block';
+        }
+
+        function hideHighlightCursor() {
+            highlightCursor.style.display = 'none';
+        }
+        syncHighlightCursor();
 
         // ───────── PDF Rendering ─────────
 
@@ -1102,6 +1261,8 @@
             totalPages = pdf.numPages;
             measurements = [];
             utilityLines = [];
+            highlights = [];
+            noteCallouts = [];
             pageAnnotations = {};
             tapPoint = null;
             scalePtPerUnit = null;
@@ -1112,6 +1273,9 @@
             sideEnable('#btn-export');
             sideEnable('#btn-utility');
             sideEnable('#btn-count');
+            sideEnable('#btn-highlight');
+            sideEnable('#btn-note');
+            sideEnable('#btn-cloud-note');
             viewer.style.display = '';
             await renderPage(1);
             setMode('none');
@@ -1128,6 +1292,8 @@
             currentPage = 1;
             measurements = [];
             utilityLines = [];
+            highlights = [];
+            noteCallouts = [];
             tapPoint = null;
             scalePtPerUnit = null;
             scaleCalibPts = null;
@@ -1151,6 +1317,9 @@
             sideEnable('#btn-export');
             sideEnable('#btn-utility');
             sideEnable('#btn-count');
+            sideEnable('#btn-highlight');
+            sideEnable('#btn-note');
+            sideEnable('#btn-cloud-note');
             viewer.style.display = '';
 
             updatePageInfo();
@@ -1525,6 +1694,37 @@
                 return;
             }
 
+            if (mode === 'highlight') {
+                const pt = screenToPdfPts(e.clientX, e.clientY);
+                if (pt.x < 0 || pt.y < 0 || pt.x > pdfPageWidth || pt.y > pdfPageHeight) return;
+                highlightPointerId = e.pointerId;
+                highlightDraft = {
+                    points: [{ x: pt.x, y: pt.y }],
+                    size: highlightSize,
+                    opacity: highlightOpacity,
+                    id: null
+                };
+                viewer.setPointerCapture?.(e.pointerId);
+                rebuildSVG();
+                return;
+            }
+
+            if (mode === 'cloud-note' && !noteDraft) {
+                const pt = screenToPdfPts(e.clientX, e.clientY);
+                if (pt.x < 0 || pt.y < 0 || pt.x > pdfPageWidth || pt.y > pdfPageHeight) return;
+                cloudPointerId = e.pointerId;
+                cloudStart = pt;
+                cloudDraft = { x: pt.x, y: pt.y, w: 0, h: 0 };
+                viewer.setPointerCapture?.(e.pointerId);
+                rebuildSVG();
+                return;
+            }
+
+            if ((mode === 'note' || mode === 'cloud-note') && noteDraft) {
+                tapCandidate = { id: e.pointerId, x: e.clientX, y: e.clientY, time: Date.now() };
+                return;
+            }
+
             touches[e.pointerId] = { x: e.clientX, y: e.clientY };
             const ids = Object.keys(touches);
 
@@ -1569,11 +1769,37 @@
 
         viewer.addEventListener('pointermove', e => {
             e.preventDefault();
+            if (mode === 'highlight') showHighlightCursor(e.clientX, e.clientY);
+            if (cloudDraft && e.pointerId === cloudPointerId) {
+                const pt = screenToPdfPts(e.clientX, e.clientY);
+                cloudDraft = normalizeRect(cloudStart, pt);
+                rebuildSVG();
+                return;
+            }
+            if ((mode === 'note' || mode === 'cloud-note') && noteDraft) {
+                const pt = screenToPdfPts(e.clientX, e.clientY);
+                noteDraft.x = Math.max(0, Math.min(pdfPageWidth - noteDraft.w, pt.x - noteDraft.w / 2));
+                noteDraft.y = Math.max(0, Math.min(pdfPageHeight - noteDraft.h, pt.y - noteDraft.h / 2));
+                noteDraft.anchor = nearestBoxPoint(noteDraft, noteDraft.arrow);
+                rebuildSVG();
+                return;
+            }
             // Middle-drag pan
             if (middleDrag && e.pointerId === middlePointerId) {
                 panX = middlePanStartX + (e.clientX - middleStartX);
                 panY = middlePanStartY + (e.clientY - middleStartY);
                 applyTransform();
+                return;
+            }
+            if (highlightDraft && e.pointerId === highlightPointerId) {
+                const pt = screenToPdfPts(e.clientX, e.clientY);
+                if (pt.x >= 0 && pt.y >= 0 && pt.x <= pdfPageWidth && pt.y <= pdfPageHeight) {
+                    const last = highlightDraft.points[highlightDraft.points.length - 1];
+                    if (!last || ptsDist(last, pt) > Math.max(1, highlightDraft.size * 0.15)) {
+                        highlightDraft.points.push({ x: pt.x, y: pt.y });
+                        rebuildSVG();
+                    }
+                }
                 return;
             }
             if (!touches[e.pointerId]) return;
@@ -1608,7 +1834,7 @@
                 const moved = Math.hypot(dx, dy) > 8;
 
                 // Dragging an existing measurement/utility point
-                if (dragTarget && moved) {
+                if (dragTarget && moved && !(dragTarget.isNote && dragTarget.part === 'edit')) {
                     isDraggingPoint = true;
                     tapCandidate = null;
                     isPanning = false;
@@ -1657,6 +1883,83 @@
                 return;
             }
 
+            if (highlightDraft && e.pointerId === highlightPointerId) {
+                if (highlightDraft.points.length > 0) {
+                    highlightDraft.id = ++idCounter;
+                    highlights.push(highlightDraft);
+                    savePageData();
+                    sideEnable('#btn-undo');
+                    $('#btn-clear-all').disabled = false;
+                    setStatus('Highlight added. Drag to add another.');
+                }
+                highlightDraft = null;
+                highlightPointerId = null;
+                viewer.releasePointerCapture?.(e.pointerId);
+                rebuildSVG();
+                return;
+            }
+
+            if (cloudDraft && e.pointerId === cloudPointerId) {
+                const cloud = { ...cloudDraft };
+                cloudDraft = null;
+                cloudStart = null;
+                cloudPointerId = null;
+                viewer.releasePointerCapture?.(e.pointerId);
+                if (Math.abs(cloud.w) > 10 && Math.abs(cloud.h) > 10) {
+                    const anchorSeed = { x: cloud.x + cloud.w, y: cloud.y + cloud.h / 2 };
+                    const x = Math.max(0, Math.min(pdfPageWidth - noteBoxW, cloud.x + cloud.w + 35));
+                    const y = Math.max(0, Math.min(pdfPageHeight - noteBoxH, cloud.y));
+                    noteDraft = {
+                        arrow: anchorSeed,
+                        x,
+                        y,
+                        w: noteBoxW,
+                        h: noteBoxH,
+                        color: noteColor,
+                        textColor: noteTextColor,
+                        bgColor: noteBgColor,
+                        fontSize: noteFontSize,
+                        text: '',
+                        cloud,
+                        id: null
+                    };
+                    noteDraft.anchor = nearestBoxPoint(noteDraft, noteDraft.arrow);
+                    setStatus('Move the text box where you want it, then click to place.');
+                } else {
+                    setStatus('Drag a larger cloud area.');
+                }
+                rebuildSVG();
+                return;
+            }
+
+            if (tapCandidate && tapCandidate.id === e.pointerId && dragTarget?.isNote && dragTarget.part === 'edit') {
+                const dx = e.clientX - tapCandidate.x;
+                const dy = e.clientY - tapCandidate.y;
+                const elapsed = Date.now() - tapCandidate.time;
+                const noteIdx = dragTarget.noteIdx;
+                dragTarget = null;
+                tapCandidate = null;
+                delete touches[e.pointerId];
+                if (Math.hypot(dx, dy) < 12 && elapsed < 400) {
+                    openNoteEditor(noteIdx);
+                }
+                return;
+            }
+
+            if (tapCandidate && tapCandidate.id === e.pointerId && dragTarget?.isNote && dragTarget.part === 'delete') {
+                const dx = e.clientX - tapCandidate.x;
+                const dy = e.clientY - tapCandidate.y;
+                const elapsed = Date.now() - tapCandidate.time;
+                const noteIdx = dragTarget.noteIdx;
+                dragTarget = null;
+                tapCandidate = null;
+                delete touches[e.pointerId];
+                if (Math.hypot(dx, dy) < 12 && elapsed < 400) {
+                    deleteNote(noteIdx);
+                }
+                return;
+            }
+
             // End point drag
             if (isDraggingPoint && dragTarget) {
                 recalcDragTarget();
@@ -1690,6 +1993,17 @@
         });
 
         viewer.addEventListener('pointercancel', e => {
+            if (highlightPointerId === e.pointerId) {
+                highlightDraft = null;
+                highlightPointerId = null;
+                rebuildSVG();
+            }
+            if (cloudPointerId === e.pointerId) {
+                cloudDraft = null;
+                cloudStart = null;
+                cloudPointerId = null;
+                rebuildSVG();
+            }
             delete touches[e.pointerId];
             tapCandidate = null;
             isDraggingPoint = false;
@@ -1700,6 +2014,7 @@
         // Live preview: track mouse position even when no button is pressed (desktop)
         viewer.addEventListener('mousemove', e => {
             if (Object.keys(touches).length > 0) return; // pointer events handle this
+            if (mode === 'highlight') showHighlightCursor(e.clientX, e.clientY);
             if (mode === 'none') { cursorPt = null; return; }
             if (tapPoint || polyPoints.length > 0 || utilPolyPts.length > 0 || areaPoints.length > 0 || volPoints.length > 0) {
                 cursorPt = screenToPdfPts(e.clientX, e.clientY);
@@ -1709,6 +2024,7 @@
 
         // Clear cursor when leaving viewer
         viewer.addEventListener('mouseleave', () => {
+            hideHighlightCursor();
             if (cursorPt) { cursorPt = null; rebuildSVG(); }
         });
 
@@ -1717,6 +2033,13 @@
             if (e.key !== 'Escape') return;
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
+            if (highlightDraft) {
+                highlightDraft = null;
+                highlightPointerId = null;
+                rebuildSVG();
+                setStatus('Highlight cancelled.');
+                return;
+            }
             if (volPoints.length > 0) {
                 volPoints = [];
                 cursorPt = null;
@@ -2040,6 +2363,44 @@
 
             // Bounds check
             if (pt.x < 0 || pt.y < 0 || pt.x > pdfPageWidth || pt.y > pdfPageHeight) return;
+
+            if (mode === 'note' || mode === 'cloud-note') {
+                if (noteDraft) {
+                    noteDraft.id = ++idCounter;
+                    noteCallouts.push(noteDraft);
+                    const placedIdx = noteCallouts.length - 1;
+                    noteDraft = null;
+                    noteArrowPt = null;
+                    savePageData();
+                    sideEnable('#btn-undo');
+                    $('#btn-clear-all').disabled = false;
+                    rebuildSVG();
+                    setMode('none');
+                    openNoteEditor(placedIdx);
+                    setStatus('Type the note text, then save.');
+                    return;
+                }
+                noteArrowPt = pt;
+                const x = Math.max(0, Math.min(pdfPageWidth - noteBoxW, pt.x + 45));
+                const y = Math.max(0, Math.min(pdfPageHeight - noteBoxH, pt.y + 30));
+                noteDraft = {
+                    arrow: { x: pt.x, y: pt.y },
+                    x,
+                    y,
+                    w: noteBoxW,
+                    h: noteBoxH,
+                    color: noteColor,
+                    textColor: noteTextColor,
+                    bgColor: noteBgColor,
+                    fontSize: noteFontSize,
+                    text: '',
+                    id: null
+                };
+                noteDraft.anchor = nearestBoxPoint(noteDraft, noteDraft.arrow);
+                rebuildSVG();
+                setStatus('Move the text box where you want it, then click to place.');
+                return;
+            }
 
             if (mode === 'count') {
                 const num = countPoints.length + 1;
@@ -2432,6 +2793,24 @@
 
         function hitTestMeasurementPoint(pt) {
             const hitRadius = 10 * ptsPerScreenPx();
+            const handleRadius = 12 * ptsPerScreenPx();
+            for (let i = noteCallouts.length - 1; i >= 0; i--) {
+                const n = noteCallouts[i];
+                const resize = { x: n.x + n.w, y: n.y + n.h };
+                const editSize = 18 * ptsPerScreenPx();
+                if (pt.x >= n.x && pt.x <= n.x + editSize && pt.y >= n.y && pt.y <= n.y + editSize) {
+                    return { isNote: true, noteIdx: i, part: 'delete' };
+                }
+                if (pt.x >= n.x + n.w - editSize && pt.x <= n.x + n.w && pt.y >= n.y && pt.y <= n.y + editSize) {
+                    return { isNote: true, noteIdx: i, part: 'edit' };
+                }
+                if (ptsDist(pt, n.arrow) < handleRadius) return { isNote: true, noteIdx: i, part: 'arrow' };
+                if (ptsDist(pt, n.anchor) < handleRadius) return { isNote: true, noteIdx: i, part: 'anchor' };
+                if (ptsDist(pt, resize) < handleRadius) return { isNote: true, noteIdx: i, part: 'resize' };
+                if (pt.x >= n.x && pt.x <= n.x + n.w && pt.y >= n.y && pt.y <= n.y + n.h) {
+                    return { isNote: true, noteIdx: i, part: 'box', offX: pt.x - n.x, offY: pt.y - n.y };
+                }
+            }
             // Check utility lines first (drawn on top)
             for (let i = utilityLines.length - 1; i >= 0; i--) {
                 const u = utilityLines[i];
@@ -2500,6 +2879,28 @@
         }
 
         function applyDragTarget(pt) {
+            if (dragTarget.isNote) {
+                const n = noteCallouts[dragTarget.noteIdx];
+                if (dragTarget.part === 'arrow') {
+                    n.arrow = { x: pt.x, y: pt.y };
+                    n.anchor = nearestBoxPoint(n, n.arrow);
+                } else if (dragTarget.part === 'anchor') {
+                    n.anchor = clampPointToBoxEdge(n, pt);
+                } else if (dragTarget.part === 'resize') {
+                    n.w = Math.max(70, pt.x - n.x);
+                    n.h = Math.max(36, pt.y - n.y);
+                    n.anchor = clampPointToBoxEdge(n, n.anchor);
+                } else if (dragTarget.part === 'box') {
+                    const nextX = pt.x - dragTarget.offX;
+                    const nextY = pt.y - dragTarget.offY;
+                    const dx = nextX - n.x;
+                    const dy = nextY - n.y;
+                    n.x = nextX;
+                    n.y = nextY;
+                    n.anchor = { x: n.anchor.x + dx, y: n.anchor.y + dy };
+                }
+                return;
+            }
             if (dragTarget.isUtil) {
                 utilityLines[dragTarget.utilIdx].points[dragTarget.polyIdx] = { x: pt.x, y: pt.y };
                 return;
@@ -2524,6 +2925,9 @@
 
         function recalcDragTarget() {
             if (!dragTarget) return;
+            if (dragTarget.isNote) {
+                return;
+            }
             if (dragTarget.isUtil) {
                 recalcUtility(dragTarget.utilIdx);
                 updateUtilityList();
@@ -2618,6 +3022,86 @@
             return 1 / (zoom * RENDER_SCALE);
         }
 
+        function escapeHTML(value) {
+            return String(value).replace(/[&<>"']/g, ch => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[ch]));
+        }
+
+        function noteLines(text, maxChars = 24) {
+            return String(text || '').split(/\r?\n/).flatMap(line => {
+                const words = line.split(/\s+/).filter(Boolean);
+                if (words.length === 0) return [''];
+                const lines = [];
+                let cur = '';
+                for (const word of words) {
+                    const next = cur ? cur + ' ' + word : word;
+                    if (next.length > maxChars && cur) {
+                        lines.push(cur);
+                        cur = word;
+                    } else {
+                        cur = next;
+                    }
+                }
+                if (cur) lines.push(cur);
+                return lines;
+            });
+        }
+
+        function normalizeRect(a, b) {
+            const x = Math.max(0, Math.min(a.x, b.x));
+            const y = Math.max(0, Math.min(a.y, b.y));
+            const x2 = Math.min(pdfPageWidth, Math.max(a.x, b.x));
+            const y2 = Math.min(pdfPageHeight, Math.max(a.y, b.y));
+            return { x, y, w: x2 - x, h: y2 - y };
+        }
+
+        function cloudPath(cloud, puff) {
+            const x = cloud.x, y = cloud.y, w = cloud.w, h = cloud.h;
+            const step = Math.max(puff * 1.4, Math.min(w, h) / 5);
+            let d = `M ${x} ${y}`;
+            for (let px = x; px < x + w; px += step) {
+                const nx = Math.min(x + w, px + step);
+                d += ` Q ${(px + nx) / 2} ${y - puff} ${nx} ${y}`;
+            }
+            for (let py = y; py < y + h; py += step) {
+                const ny = Math.min(y + h, py + step);
+                d += ` Q ${x + w + puff} ${(py + ny) / 2} ${x + w} ${ny}`;
+            }
+            for (let px = x + w; px > x; px -= step) {
+                const nx = Math.max(x, px - step);
+                d += ` Q ${(px + nx) / 2} ${y + h + puff} ${nx} ${y + h}`;
+            }
+            for (let py = y + h; py > y; py -= step) {
+                const ny = Math.max(y, py - step);
+                d += ` Q ${x - puff} ${(py + ny) / 2} ${x} ${ny}`;
+            }
+            return d + ' Z';
+        }
+
+        function nearestBoxPoint(box, pt) {
+            const cx = box.x + box.w / 2;
+            const cy = box.y + box.h / 2;
+            const dx = pt.x - cx;
+            const dy = pt.y - cy;
+            if (Math.abs(dx) / box.w > Math.abs(dy) / box.h) {
+                return { x: dx < 0 ? box.x : box.x + box.w, y: Math.max(box.y, Math.min(box.y + box.h, pt.y)) };
+            }
+            return { x: Math.max(box.x, Math.min(box.x + box.w, pt.x)), y: dy < 0 ? box.y : box.y + box.h };
+        }
+
+        function clampPointToBoxEdge(box, pt) {
+            const dLeft = Math.abs(pt.x - box.x);
+            const dRight = Math.abs(pt.x - (box.x + box.w));
+            const dTop = Math.abs(pt.y - box.y);
+            const dBottom = Math.abs(pt.y - (box.y + box.h));
+            const min = Math.min(dLeft, dRight, dTop, dBottom);
+            if (min === dLeft) return { x: box.x, y: Math.max(box.y, Math.min(box.y + box.h, pt.y)) };
+            if (min === dRight) return { x: box.x + box.w, y: Math.max(box.y, Math.min(box.y + box.h, pt.y)) };
+            if (min === dTop) return { x: Math.max(box.x, Math.min(box.x + box.w, pt.x)), y: box.y };
+            return { x: Math.max(box.x, Math.min(box.x + box.w, pt.x)), y: box.y + box.h };
+        }
+
         function rebuildSVG() {
             svgEl.setAttribute('viewBox', `0 0 ${pdfPageWidth} ${pdfPageHeight}`);
 
@@ -2633,6 +3117,23 @@
 
             const sz = { dotR, strokeW, capLen, fontSize, labelOffset, textStroke, pendingR };
             let html = '';
+            html += `<defs><marker id="note-arrowhead" markerWidth="${10 * s}" markerHeight="${8 * s}" refX="${9 * s}" refY="${4 * s}" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L${10 * s},${4 * s} L0,${8 * s} Z" fill="context-stroke"/></marker></defs>`;
+
+            for (const h of highlights) {
+                html += highlightHTML(h.points, h.size, h.opacity);
+            }
+            if (highlightDraft) {
+                html += highlightHTML(highlightDraft.points, highlightDraft.size, highlightDraft.opacity);
+            }
+            if (cloudDraft) {
+                html += `<path d="${cloudPath(cloudDraft, 8 * s)}" fill="none" stroke="${noteColor}" stroke-width="${3 * s}" opacity="0.85"/>`;
+            }
+            for (const note of noteCallouts) {
+                html += noteHTML(note, sz);
+            }
+            if (noteDraft) {
+                html += noteHTML(noteDraft, sz, true);
+            }
 
             for (const m of measurements) {
                 if (m.type === 'polyline') {
@@ -2773,6 +3274,65 @@
             }
 
             svgEl.innerHTML = html;
+        }
+
+        function highlightHTML(pts, size, opacity) {
+            if (!pts || pts.length < 1) return '';
+            if (pts.length === 1) {
+                const p = pts[0];
+                return `<circle cx="${p.x}" cy="${p.y}" r="${size / 2}" fill="${HIGHLIGHT_COLOR}" opacity="${opacity}"/>`;
+            }
+            const points = pts.map(p => `${p.x},${p.y}`).join(' ');
+            return `<polyline points="${points}" fill="none" stroke="${HIGHLIGHT_COLOR}" stroke-width="${size}"
+                stroke-linecap="round" stroke-linejoin="round" opacity="${opacity}"/>`;
+        }
+
+        function noteHTML(note, sz, inProgress = false) {
+            const s = ptsPerScreenPx();
+            const color = note.color || DEFAULT_NOTE_COLOR;
+            const textColor = note.textColor || DEFAULT_NOTE_TEXT_COLOR;
+            const bgColor = note.bgColor || DEFAULT_NOTE_BG_COLOR;
+            const font = (note.fontSize || 12) * s;
+            const pad = 7 * s;
+            const angle = Math.atan2(note.arrow.y - note.anchor.y, note.arrow.x - note.anchor.x);
+            const arrowLen = 16 * s;
+            const arrowSpread = 0.42;
+            const ah1 = {
+                x: note.arrow.x - arrowLen * Math.cos(angle - arrowSpread),
+                y: note.arrow.y - arrowLen * Math.sin(angle - arrowSpread)
+            };
+            const ah2 = {
+                x: note.arrow.x - arrowLen * Math.cos(angle + arrowSpread),
+                y: note.arrow.y - arrowLen * Math.sin(angle + arrowSpread)
+            };
+            const maxChars = Math.max(8, Math.floor((note.w - pad * 2) / (font * 0.58)));
+            const lines = noteLines(note.text, maxChars).slice(0, Math.max(1, Math.floor((note.h - pad * 2) / (font * 1.25))));
+            let html = '';
+            if (note.cloud) {
+                html += `<path d="${cloudPath(note.cloud, 8 * s)}" fill="${bgColor}" fill-opacity="0.08" stroke="${color}" stroke-width="${3 * s}"/>`;
+            }
+            html += `
+                <line x1="${note.anchor.x}" y1="${note.anchor.y}" x2="${note.arrow.x}" y2="${note.arrow.y}"
+                    stroke="${color}" stroke-width="${3.5 * s}" opacity="${inProgress ? 0.85 : 1}"/>
+                <polygon points="${note.arrow.x},${note.arrow.y} ${ah1.x},${ah1.y} ${ah2.x},${ah2.y}" fill="${color}" opacity="${inProgress ? 0.75 : 1}"/>
+                <rect x="${note.x}" y="${note.y}" width="${note.w}" height="${note.h}" rx="${4 * s}" ry="${4 * s}"
+                    fill="${bgColor}" fill-opacity="0.94" stroke="${color}" stroke-width="${2 * s}" opacity="${inProgress ? 0.85 : 1}"/>
+            `;
+            lines.forEach((line, i) => {
+                html += `<text x="${note.x + pad}" y="${note.y + pad + font * (i + 1)}"
+                    style="font-size:${font}px; fill:${textColor}; font-weight:600;">${escapeHTML(line)}</text>`;
+            });
+            html += `
+                <circle cx="${note.anchor.x}" cy="${note.anchor.y}" r="${4 * s}" fill="#fff" stroke="${color}" stroke-width="${1.5 * s}"/>
+                <rect x="${note.x}" y="${note.y}" width="${18 * s}" height="${18 * s}" rx="${3 * s}" ry="${3 * s}" fill="#AA2222" stroke="#111" stroke-width="${0.8 * s}"/>
+                <text x="${note.x + 9 * s}" y="${note.y + 12.5 * s}" text-anchor="middle"
+                    style="font-size:${12 * s}px; fill:#fff; font-weight:800;">X</text>
+                <rect x="${note.x + note.w - 18 * s}" y="${note.y}" width="${18 * s}" height="${18 * s}" rx="${3 * s}" ry="${3 * s}" fill="${color}" stroke="#111" stroke-width="${0.8 * s}"/>
+                <text x="${note.x + note.w - 9 * s}" y="${note.y + 12.5 * s}" text-anchor="middle"
+                    style="font-size:${11 * s}px; fill:#111; font-weight:800;">E</text>
+                <rect x="${note.x + note.w - 6 * s}" y="${note.y + note.h - 6 * s}" width="${6 * s}" height="${6 * s}" fill="${color}" stroke="#111" stroke-width="${0.8 * s}"/>
+            `;
+            return html;
         }
 
         function polylineHTML(pts, totalLabel, sz, inProgress = false) {
@@ -2950,6 +3510,18 @@
             }
             mode = m;
             tapPoint = null;
+            highlightDraft = null;
+            highlightPointerId = null;
+            if (m !== 'cloud-note') {
+                cloudStart = null;
+                cloudDraft = null;
+                cloudPointerId = null;
+            }
+            if (m !== 'note' && m !== 'cloud-note') {
+                noteArrowPt = null;
+                noteDraft = null;
+                editingNoteIdx = null;
+            }
             if (m !== 'polyline') polyPoints = [];
             if (m !== 'utility') utilPolyPts = [];
             if (m !== 'area') areaPoints = [];
@@ -2961,7 +3533,12 @@
             $('#btn-count').classList.toggle('active', m === 'count');
             $('#btn-area').classList.toggle('active', m === 'area');
             $('#btn-volume').classList.toggle('active', m === 'volume');
+            $('#btn-highlight').classList.toggle('active', m === 'highlight');
+            $('#btn-note').classList.toggle('active', m === 'note');
+            $('#btn-cloud-note').classList.toggle('active', m === 'cloud-note');
             viewer.classList.toggle('crosshair', m !== 'none' || compareMode);
+            viewer.style.cursor = m === 'highlight' ? 'none' : '';
+            if (m !== 'highlight') hideHighlightCursor();
 
             if (m === 'scale') {
                 setStatus('Tap two points on a known distance.');
@@ -2977,6 +3554,12 @@
                 setStatus('Tap 3+ points to define an area. Double-tap or tap Finish to close.');
             } else if (m === 'volume') {
                 setStatus('Tap 3+ points to define volume area. Double-tap or tap Finish to close.');
+            } else if (m === 'highlight') {
+                setStatus('Drag over the plan to highlight in yellow.');
+            } else if (m === 'note') {
+                setStatus('Tap the plan where the arrow should point. A note box will appear.');
+            } else if (m === 'cloud-note') {
+                setStatus('Drag a cloud around the area, then place the note box.');
             } else {
                 setStatus('Use two fingers to pan/zoom. Set Scale then Measure.');
             }
@@ -3112,7 +3695,7 @@
             savePageData();
             rebuildSVG();
             updateCountList();
-            if (countPoints.length === 0 && measurements.length === 0 && utilityLines.length === 0 && areas.length === 0) {
+            if (countPoints.length === 0 && measurements.length === 0 && utilityLines.length === 0 && highlights.length === 0 && noteCallouts.length === 0 && areas.length === 0) {
                 sideDisable('#btn-undo');
             }
         };
@@ -3152,7 +3735,7 @@
             savePageData();
             rebuildSVG();
             updateAreaList();
-            if (countPoints.length === 0 && measurements.length === 0 && utilityLines.length === 0 && areas.length === 0 && volumes.length === 0) {
+            if (countPoints.length === 0 && measurements.length === 0 && utilityLines.length === 0 && highlights.length === 0 && noteCallouts.length === 0 && areas.length === 0 && volumes.length === 0) {
                 sideDisable('#btn-undo');
             }
         };
@@ -3188,7 +3771,7 @@
             savePageData();
             rebuildSVG();
             updateVolumeList();
-            if (countPoints.length === 0 && measurements.length === 0 && utilityLines.length === 0 && areas.length === 0 && volumes.length === 0) {
+            if (countPoints.length === 0 && measurements.length === 0 && utilityLines.length === 0 && highlights.length === 0 && noteCallouts.length === 0 && areas.length === 0 && volumes.length === 0) {
                 sideDisable('#btn-undo');
             }
         };
@@ -3389,6 +3972,152 @@
             }
         });
 
+        function showHighlightModal() {
+            const modal = $('#highlight-modal');
+            const box = $('#highlight-modal-box');
+            modal.style.display = 'block';
+            box.style.left = Math.max(0, window.innerWidth - 300) + 'px';
+            box.style.top = '60px';
+        }
+
+        $('#btn-highlight').addEventListener('click', () => {
+            if ($('#btn-highlight').classList.contains('is-disabled')) return;
+            if (mode === 'highlight') {
+                setMode('none');
+            } else {
+                showHighlightModal();
+                setMode('highlight');
+            }
+        });
+
+        $('#highlight-close').addEventListener('click', () => {
+            $('#highlight-modal').style.display = 'none';
+            if (mode === 'highlight') setMode('none');
+        });
+
+        $('#highlight-size').addEventListener('input', e => {
+            highlightSize = parseFloat(e.target.value);
+            syncHighlightCursor();
+        });
+
+        $('#highlight-opacity').addEventListener('input', e => {
+            highlightOpacity = parseFloat(e.target.value);
+            $('#highlight-opacity-val').textContent = Math.round(highlightOpacity * 100) + '%';
+            syncHighlightCursor();
+        });
+
+        function showNoteModal(note = null) {
+            const modal = $('#note-modal');
+            const box = $('#note-modal-box');
+            modal.style.display = 'block';
+            box.style.left = Math.max(0, window.innerWidth - 340) + 'px';
+            box.style.top = '60px';
+            $('#note-text').value = note?.text || '';
+            $('#note-color').value = note?.color || noteColor;
+            $('#note-text-color').value = note?.textColor || noteTextColor;
+            $('#note-bg-color').value = note?.bgColor || noteBgColor;
+            $('#note-font-size').value = String(note?.fontSize || noteFontSize);
+            $('#note-box-w').value = note?.w || noteBoxW;
+            $('#note-box-h').value = note?.h || noteBoxH;
+            $('#note-ok').textContent = note ? 'Save Note' : 'Place Note';
+            setTimeout(() => {
+                $('#note-text').focus();
+                $('#note-text').select();
+            }, 50);
+        }
+
+        function closeNoteModal(cancel = false) {
+            $('#note-modal').style.display = 'none';
+            if (cancel && editingNoteIdx === null) {
+                noteArrowPt = null;
+                noteDraft = null;
+                rebuildSVG();
+                setStatus('Note cancelled.');
+            }
+            editingNoteIdx = null;
+        }
+
+        function openNoteEditor(noteIdx) {
+            if (!noteCallouts[noteIdx]) return;
+            editingNoteIdx = noteIdx;
+            showNoteModal(noteCallouts[noteIdx]);
+        }
+
+        function deleteNote(noteIdx) {
+            if (!noteCallouts[noteIdx]) return;
+            noteCallouts.splice(noteIdx, 1);
+            savePageData();
+            rebuildSVG();
+            if (measurements.length === 0 && utilityLines.length === 0 && highlights.length === 0 && noteCallouts.length === 0 && countPoints.length === 0 && areas.length === 0 && volumes.length === 0) {
+                sideDisable('#btn-undo');
+            }
+            setStatus('Note deleted.');
+        }
+
+        $('#btn-note').addEventListener('click', () => {
+            if ($('#btn-note').classList.contains('is-disabled')) return;
+            if (mode === 'note') {
+                setMode('none');
+            } else {
+                setMode('note');
+            }
+        });
+
+        $('#btn-cloud-note').addEventListener('click', () => {
+            if ($('#btn-cloud-note').classList.contains('is-disabled')) return;
+            setMode(mode === 'cloud-note' ? 'none' : 'cloud-note');
+        });
+
+        $('#note-ok').addEventListener('click', () => {
+            const text = $('#note-text').value.trim();
+            noteColor = $('#note-color').value || DEFAULT_NOTE_COLOR;
+            noteTextColor = $('#note-text-color').value || DEFAULT_NOTE_TEXT_COLOR;
+            noteBgColor = $('#note-bg-color').value || DEFAULT_NOTE_BG_COLOR;
+            noteFontSize = parseFloat($('#note-font-size').value) || 12;
+            noteBoxW = Math.max(70, Math.min(420, parseFloat($('#note-box-w').value) || 160));
+            noteBoxH = Math.max(36, Math.min(260, parseFloat($('#note-box-h').value) || 70));
+            if (editingNoteIdx !== null) {
+                const note = noteCallouts[editingNoteIdx];
+                if (!note) return;
+                note.text = text;
+                note.color = noteColor;
+                note.textColor = noteTextColor;
+                note.bgColor = noteBgColor;
+                note.fontSize = noteFontSize;
+                note.w = noteBoxW;
+                note.h = noteBoxH;
+                note.anchor = clampPointToBoxEdge(note, note.anchor);
+                closeNoteModal(false);
+                savePageData();
+                rebuildSVG();
+                setStatus(text ? 'Note updated.' : 'Note box saved without text.');
+                return;
+            }
+            if (!noteArrowPt) return;
+            const x = Math.min(pdfPageWidth - noteBoxW, noteArrowPt.x + 45);
+            const y = Math.min(pdfPageHeight - noteBoxH, noteArrowPt.y + 30);
+            noteDraft = {
+                arrow: { x: noteArrowPt.x, y: noteArrowPt.y },
+                x: Math.max(0, x),
+                y: Math.max(0, y),
+                w: noteBoxW,
+                h: noteBoxH,
+                color: noteColor,
+                textColor: noteTextColor,
+                bgColor: noteBgColor,
+                fontSize: noteFontSize,
+                text,
+                id: null
+            };
+            noteDraft.anchor = nearestBoxPoint(noteDraft, noteDraft.arrow);
+            closeNoteModal(false);
+            rebuildSVG();
+            setStatus('Move the text box where you want it, then click to place.');
+        });
+
+        $('#note-close').addEventListener('click', () => closeNoteModal(true));
+        $('#note-cancel').addEventListener('click', () => closeNoteModal(true));
+
         // ── Scale Modal ──
         function showScaleModal() {
             const modal = $('#scale-modal');
@@ -3446,6 +4175,8 @@
         }
 
         makeDraggable($('#scale-drag-handle'), $('#scale-modal-box'));
+        makeDraggable($('#highlight-drag-handle'), $('#highlight-modal-box'));
+        makeDraggable($('#note-drag-handle'), $('#note-modal-box'));
         makeDraggable($('#utility-drag-handle'), $('#utility-modal-box'));
         makeDraggable($('#area-drag-handle'), $('#area-modal-box'));
         makeDraggable($('#volume-drag-handle'), $('#volume-modal-box'));
@@ -3483,9 +4214,11 @@
 
         $('#btn-undo').addEventListener('click', () => {
             if ($('#btn-undo').classList.contains('is-disabled')) return;
-            // Undo the most recent item (measurement, utility, count, area, or volume)
+            // Undo the most recent item.
             const lastMeas = measurements.length > 0 ? measurements[measurements.length - 1] : null;
             const lastUtil = utilityLines.length > 0 ? utilityLines[utilityLines.length - 1] : null;
+            const lastHighlight = highlights.length > 0 ? highlights[highlights.length - 1] : null;
+            const lastNote = noteCallouts.length > 0 ? noteCallouts[noteCallouts.length - 1] : null;
             const lastCount = countPoints.length > 0 ? countPoints[countPoints.length - 1] : null;
             const lastArea = areas.length > 0 ? areas[areas.length - 1] : null;
             const lastVol = volumes.length > 0 ? volumes[volumes.length - 1] : null;
@@ -3494,6 +4227,8 @@
             const candidates = [
                 lastMeas && { type: 'meas', id: lastMeas.id },
                 lastUtil && { type: 'util', id: lastUtil.id },
+                lastHighlight && { type: 'highlight', id: lastHighlight.id },
+                lastNote && { type: 'note', id: lastNote.id },
                 lastCount && { type: 'count', id: lastCount.id },
                 lastArea && { type: 'area', id: lastArea.id },
                 lastVol && { type: 'vol', id: lastVol.id }
@@ -3504,13 +4239,15 @@
                 const latest = candidates[0];
                 if (latest.type === 'util') { utilityLines.pop(); updateUtilityList(); }
                 else if (latest.type === 'meas') { measurements.pop(); updateMeasurementsList(); }
+                else if (latest.type === 'highlight') { highlights.pop(); }
+                else if (latest.type === 'note') { noteCallouts.pop(); }
                 else if (latest.type === 'count') { countPoints.pop(); updateCountList(); }
                 else if (latest.type === 'area') { areas.pop(); updateAreaList(); }
                 else if (latest.type === 'vol') { volumes.pop(); updateVolumeList(); }
             }
             savePageData();
             rebuildSVG();
-            if (measurements.length === 0 && utilityLines.length === 0 && countPoints.length === 0 && areas.length === 0 && volumes.length === 0) {
+            if (measurements.length === 0 && utilityLines.length === 0 && highlights.length === 0 && noteCallouts.length === 0 && countPoints.length === 0 && areas.length === 0 && volumes.length === 0) {
                 sideDisable('#btn-undo');
             }
         });
@@ -3518,12 +4255,22 @@
         function doClearAll() {
             measurements = [];
             utilityLines = [];
+            highlights = [];
+            noteCallouts = [];
             countPoints = [];
             areas = [];
             volumes = [];
             pageAnnotations = {};
             polyPoints = [];
             utilPolyPts = [];
+            highlightDraft = null;
+            highlightPointerId = null;
+            noteArrowPt = null;
+            noteDraft = null;
+            editingNoteIdx = null;
+            cloudStart = null;
+            cloudDraft = null;
+            cloudPointerId = null;
             areaPoints = [];
             volPoints = [];
             tapPoint = null;
@@ -3551,6 +4298,8 @@
         function doClearLinework() {
             measurements = [];
             utilityLines = [];
+            highlights = [];
+            noteCallouts = [];
             countPoints = [];
             areas = [];
             volumes = [];
@@ -3558,12 +4307,20 @@
             for (const pg of Object.keys(pageAnnotations)) {
                 const d = pageAnnotations[pg];
                 pageAnnotations[pg] = {
-                    measurements: [], utilityLines: [], countPoints: [], areas: [], volumes: [],
+                    measurements: [], utilityLines: [], highlights: [], noteCallouts: [], countPoints: [], areas: [], volumes: [],
                     scalePtPerUnit: d.scalePtPerUnit, scaleUnit: d.scaleUnit, scaleDisplayLabel: d.scaleDisplayLabel
                 };
             }
             polyPoints = [];
             utilPolyPts = [];
+            highlightDraft = null;
+            highlightPointerId = null;
+            noteArrowPt = null;
+            noteDraft = null;
+            editingNoteIdx = null;
+            cloudStart = null;
+            cloudDraft = null;
+            cloudPointerId = null;
             areaPoints = [];
             volPoints = [];
             tapPoint = null;
@@ -3580,7 +4337,7 @@
         }
 
         $('#btn-clear-all').addEventListener('click', () => {
-            if (measurements.length === 0 && utilityLines.length === 0 && countPoints.length === 0 && areas.length === 0 && volumes.length === 0 && !scalePtPerUnit) return;
+            if (measurements.length === 0 && utilityLines.length === 0 && highlights.length === 0 && noteCallouts.length === 0 && countPoints.length === 0 && areas.length === 0 && volumes.length === 0 && !scalePtPerUnit) return;
             $('#confirm-modal').style.display = 'flex';
         });
 
@@ -3621,9 +4378,19 @@
             totalPages = 0;
             measurements = [];
             utilityLines = [];
+            highlights = [];
+            noteCallouts = [];
             pageAnnotations = {};
             polyPoints = [];
             utilPolyPts = [];
+            highlightDraft = null;
+            highlightPointerId = null;
+            noteArrowPt = null;
+            noteDraft = null;
+            editingNoteIdx = null;
+            cloudStart = null;
+            cloudDraft = null;
+            cloudPointerId = null;
             tapPoint = null;
             cursorPt = null;
             scalePtPerUnit = null;
@@ -3645,6 +4412,9 @@
             sideDisable('#btn-measure');
             sideDisable('#btn-polyline');
             sideDisable('#btn-count');
+            sideDisable('#btn-highlight');
+            sideDisable('#btn-note');
+            sideDisable('#btn-cloud-note');
             sideDisable('#btn-area');
             sideDisable('#btn-volume');
             sideDisable('#btn-undo');
@@ -4180,6 +4950,71 @@
                 expCtx.fillText(text, x, y);
             }
 
+            // --- Highlights ---
+            for (const h of highlights) {
+                if (!h.points || h.points.length === 0) continue;
+                expCtx.save();
+                expCtx.globalAlpha = h.opacity;
+                expCtx.strokeStyle = HIGHLIGHT_COLOR;
+                expCtx.fillStyle = HIGHLIGHT_COLOR;
+                expCtx.lineWidth = h.size;
+                expCtx.lineCap = 'round';
+                expCtx.lineJoin = 'round';
+                if (h.points.length === 1) {
+                    const p = h.points[0];
+                    expCtx.beginPath();
+                    expCtx.arc(p.x, p.y, h.size / 2, 0, Math.PI * 2);
+                    expCtx.fill();
+                } else {
+                    expCtx.beginPath();
+                    expCtx.moveTo(h.points[0].x, h.points[0].y);
+                    for (let i = 1; i < h.points.length; i++) {
+                        expCtx.lineTo(h.points[i].x, h.points[i].y);
+                    }
+                    expCtx.stroke();
+                }
+                expCtx.restore();
+            }
+
+            // --- Note callouts ---
+            for (const n of noteCallouts) {
+                expCtx.save();
+                const color = n.color || DEFAULT_NOTE_COLOR;
+                const textColor = n.textColor || DEFAULT_NOTE_TEXT_COLOR;
+                const bgColor = n.bgColor || DEFAULT_NOTE_BG_COLOR;
+                const fontSize = n.fontSize || 12;
+                expCtx.strokeStyle = color;
+                expCtx.fillStyle = color;
+                expCtx.lineWidth = 3.5;
+                if (n.cloud) {
+                    drawCloudToCanvas(expCtx, n.cloud, color, bgColor);
+                }
+                expCtx.beginPath();
+                expCtx.moveTo(n.anchor.x, n.anchor.y);
+                expCtx.lineTo(n.arrow.x, n.arrow.y);
+                expCtx.stroke();
+                const ang = Math.atan2(n.arrow.y - n.anchor.y, n.arrow.x - n.anchor.x);
+                expCtx.beginPath();
+                expCtx.moveTo(n.arrow.x, n.arrow.y);
+                expCtx.lineTo(n.arrow.x - 16 * Math.cos(ang - 0.42), n.arrow.y - 16 * Math.sin(ang - 0.42));
+                expCtx.lineTo(n.arrow.x - 16 * Math.cos(ang + 0.42), n.arrow.y - 16 * Math.sin(ang + 0.42));
+                expCtx.closePath();
+                expCtx.fill();
+                expCtx.fillStyle = bgColor;
+                expCtx.globalAlpha = 0.94;
+                expCtx.fillRect(n.x, n.y, n.w, n.h);
+                expCtx.globalAlpha = 1;
+                expCtx.strokeStyle = color;
+                expCtx.lineWidth = 2;
+                expCtx.strokeRect(n.x, n.y, n.w, n.h);
+                expCtx.fillStyle = textColor;
+                expCtx.font = `bold ${fontSize}px -apple-system, sans-serif`;
+                expCtx.textAlign = 'left';
+                const lines = noteLines(n.text, Math.max(8, Math.floor((n.w - 14) / (fontSize * 0.58)))).slice(0, Math.max(1, Math.floor((n.h - 14) / (fontSize * 1.25))));
+                lines.forEach((line, i) => expCtx.fillText(line, n.x + 7, n.y + 7 + fontSize * (i + 1)));
+                expCtx.restore();
+            }
+
             // --- Measurements ---
             for (const m of measurements) {
                 if (m.type === 'polyline') {
@@ -4376,18 +5211,51 @@
             $('#export-status').textContent = 'Overlay exported!';
         }
 
+        function drawCloudToCanvas(expCtx, cloud, color, bgColor) {
+            const puff = 8;
+            const step = Math.max(puff * 1.4, Math.min(cloud.w, cloud.h) / 5);
+            const x = cloud.x, y = cloud.y, w = cloud.w, h = cloud.h;
+            expCtx.save();
+            expCtx.beginPath();
+            expCtx.moveTo(x, y);
+            for (let px = x; px < x + w; px += step) {
+                const nx = Math.min(x + w, px + step);
+                expCtx.quadraticCurveTo((px + nx) / 2, y - puff, nx, y);
+            }
+            for (let py = y; py < y + h; py += step) {
+                const ny = Math.min(y + h, py + step);
+                expCtx.quadraticCurveTo(x + w + puff, (py + ny) / 2, x + w, ny);
+            }
+            for (let px = x + w; px > x; px -= step) {
+                const nx = Math.max(x, px - step);
+                expCtx.quadraticCurveTo((px + nx) / 2, y + h + puff, nx, y + h);
+            }
+            for (let py = y + h; py > y; py -= step) {
+                const ny = Math.max(y, py - step);
+                expCtx.quadraticCurveTo(x - puff, (py + ny) / 2, x, ny);
+            }
+            expCtx.closePath();
+            expCtx.globalAlpha = 0.08;
+            expCtx.fillStyle = bgColor;
+            expCtx.fill();
+            expCtx.globalAlpha = 1;
+            expCtx.strokeStyle = color;
+            expCtx.lineWidth = 3;
+            expCtx.stroke();
+            expCtx.restore();
+        }
+
         // ── Sidebar drag-and-drop reorder ──
         (function initSidebarDrag() {
-            const sidebar = document.getElementById('sidebar');
+            const sidebar = document.getElementById('sidebar-tools');
             const STORAGE_KEY = 'sidebar-order';
             let dragWrap = null;
             let ghost = null;
             let isDragging = false;
             let offsetY = 0;
 
-            // Wrap each .side-btn in a .side-btn-wrap div (skip fixed buttons)
+            // Wrap only the measurement tool buttons so their saved order stays inside the tool grid.
             [...sidebar.querySelectorAll('.side-btn')].forEach(btn => {
-                if (btn.dataset.fixed === 'true') return; // don't wrap fixed buttons
                 const wrap = document.createElement('div');
                 wrap.className = 'side-btn-wrap';
                 wrap.dataset.btnId = btn.id;
